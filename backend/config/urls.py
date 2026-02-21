@@ -20,6 +20,6 @@ from core.views import health
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    # path("api/health/", health), # Re-implement in Checkpoint 3
+    path("api/health/", health), # Re-implement in Checkpoint 3
     # path("api/", include("shipments.urls")), # Legacy
 ]

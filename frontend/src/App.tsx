@@ -1,24 +1,30 @@
+import { Routes, Route } from "react-router-dom";
+import AppLayout from "./layouts/AppLayout";
+import DashboardHome from "./pages/DashboardHome";
+import BackendConnected from "./pages/BackendConnected";
 
-import { Routes, Route, Link } from 'react-router-dom';
-import BackendConnected from './pages/BackendConnected';
+function PlaceholderPage(props: { title: string }) {
+  return <h1 style={{ marginTop: 0 }}>{props.title}</h1>;
+}
 
 export default function App() {
   return (
-    <div>
-      <nav style={{ padding: '10px', background: '#eee', marginBottom: '20px' }}>
-        <Link to="/" style={{ marginRight: '10px' }}>Home</Link>
-        <Link to="/backend-connected">Backend Connected</Link>
-      </nav>
-
-      <Routes>
-        <Route path="/" element={
-          <div>
-            <h1>AGC ProPack Frontend</h1>
-            <p>Welcome to the ProPack application.</p>
-          </div>
-        } />
+    <Routes>
+      <Route element={<AppLayout />}>
+        <Route path="/" element={<DashboardHome />} />
         <Route path="/backend-connected" element={<BackendConnected />} />
-      </Routes>
-    </div>
+
+        {/* placeholders so sidebar links have somewhere to go */}
+        <Route path="/warehouses" element={<PlaceholderPage title="Warehouses" />} />
+        <Route path="/receiving" element={<PlaceholderPage title="Receiving" />} />
+        <Route path="/inventory" element={<PlaceholderPage title="Inventory" />} />
+        <Route path="/shipping" element={<PlaceholderPage title="Shipping" />} />
+        <Route path="/repacking" element={<PlaceholderPage title="Repacking" />} />
+        <Route path="/consolidated" element={<PlaceholderPage title="Consolidated" />} />
+        <Route path="/payments" element={<PlaceholderPage title="Payments" />} />
+        <Route path="/billing" element={<PlaceholderPage title="Billing" />} />
+        <Route path="/search" element={<PlaceholderPage title="Search" />} />
+      </Route>
+    </Routes>
   );
 }

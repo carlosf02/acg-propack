@@ -1,7 +1,7 @@
 import { apiGet } from './client';
 
 export const ENDPOINTS = {
-    HEALTH: '/health',
+    HEALTH: '/api/health',
 };
 
 export interface HealthResponse {
