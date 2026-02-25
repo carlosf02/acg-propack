@@ -16,10 +16,8 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from core.views import health
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("api/health/", health), # Re-implement in Checkpoint 3
-    # path("api/", include("shipments.urls")), # Legacy
+    path("api/v1/", include("api.v1.urls")),
 ]
