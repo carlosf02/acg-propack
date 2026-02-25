@@ -11,3 +11,25 @@ __pycache__/
 # frontend cache
 frontend/dist/
 frontend/.vite/
+
+# Ide and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing files
+backend/cookies.txt
+backend/tests/manual/*.json
+backend/tests/manual/wr*.json
+backend/wr1_response.txt
+
+# Pytest / Coverage
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+.cache
+coverage.xml
+*.cover
+*.log
