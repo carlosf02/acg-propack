@@ -1,4 +1,5 @@
-import { Link, NavLink, Outlet } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 
 function TopMenuButton(props: { label: string }) {
     return (
@@ -33,6 +34,68 @@ function SideNavItem(props: { to: string; label: string }) {
         >
             {props.label}
         </NavLink>
+    );
+}
+
+function SideNavDropdown(props: {
+    label: string;
+    basePath: string;
+    items: { to: string; label: string }[];
+}) {
+    const { pathname } = useLocation();
+    const isActive = pathname === props.basePath || pathname.startsWith(props.basePath + "/");
+
+    const [open, setOpen] = useState(isActive);
+
+    useEffect(() => {
+        if (isActive) setOpen(true);
+    }, [isActive]);
+
+    return (
+        <div style={{ borderBottom: "1px solid rgba(255,255,255,0.12)" }}>
+            <button
+                type="button"
+                onClick={() => setOpen((v) => !v)}
+                aria-expanded={open}
+                style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "12px 14px",
+                    background: isActive ? "rgba(255,255,255,0.12)" : "transparent",
+                    color: "white",
+                    border: "none",
+                    cursor: "pointer",
+                    fontWeight: isActive ? 700 : 500,
+                    textAlign: "left",
+                }}
+            >
+                <span>{props.label}</span>
+                <span style={{ opacity: 0.85 }}>{open ? "▾" : "▸"}</span>
+            </button>
+
+            {open && (
+                <div style={{ paddingBottom: 8 }}>
+                    {props.items.map((item) => (
+                        <NavLink
+                            key={item.to}
+                            to={item.to}
+                            style={({ isActive }) => ({
+                                display: "block",
+                                padding: "10px 14px 10px 28px",
+                                textDecoration: "none",
+                                color: "white",
+                                opacity: isActive ? 1 : 0.9,
+                                fontWeight: isActive ? 700 : 500,
+                            })}
+                        >
+                            {item.label}
+                        </NavLink>
+                    ))}
+                </div>
+            )}
+        </div>
     );
 }
 
@@ -96,11 +159,16 @@ export default function AppLayout() {
                     <nav>
                         <SideNavItem to="/" label="Home" />
                         <SideNavItem to="/warehouses" label="Warehouses" />
-                        <SideNavItem to="/receiving" label="Receiving" />
-                        <SideNavItem to="/inventory" label="Inventory" />
-                        <SideNavItem to="/shipping" label="Shipping" />
                         <SideNavItem to="/repacking" label="Repacking" />
                         <SideNavItem to="/consolidated" label="Consolidated" />
+                        <SideNavDropdown
+                            label="Lockers"
+                            basePath="/clients"
+                            items={[
+                                { to: "/clients", label: "List Lockers" },
+                                { to: "/clients/new", label: "Create Locker" },
+                            ]}
+                        />
                         <SideNavItem to="/payments" label="Payments" />
                         <SideNavItem to="/billing" label="Billing" />
                         <SideNavItem to="/search" label="Search" />

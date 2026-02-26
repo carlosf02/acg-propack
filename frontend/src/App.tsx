@@ -2,6 +2,8 @@ import { Routes, Route } from "react-router-dom";
 import AppLayout from "./layouts/AppLayout";
 import DashboardHome from "./pages/DashboardHome";
 import BackendConnected from "./pages/BackendConnected";
+import CreateLockerPage from "./features/clients/pages/CreateLockerPage";
+import ListLockerPage from "./features/clients/pages/ListLockerPage";
 
 function PlaceholderPage(props: { title: string }) {
   return <h1 style={{ marginTop: 0 }}>{props.title}</h1>;
@@ -12,6 +14,8 @@ export default function App() {
     <Routes>
       <Route element={<AppLayout />}>
         <Route path="/" element={<DashboardHome />} />
+        <Route path="/clients" element={<ListLockerPage />} />
+        <Route path="/clients/new" element={<CreateLockerPage />} />
         <Route path="/backend-connected" element={<BackendConnected />} />
 
         {/* placeholders so sidebar links have somewhere to go */}
