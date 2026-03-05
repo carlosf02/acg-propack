@@ -167,7 +167,14 @@ export default function AppLayout() {
                                 { to: "/warehouses/new", label: "Create Warehouse" },
                             ]}
                         />
-                        <SideNavItem to="/repacking" label="Repacking" />
+                        <SideNavDropdown
+                            label="Repacking"
+                            basePath="/repacking"
+                            items={[
+                                { to: "/repacking", label: "List Repacking" },
+                                { to: "/repacking/new", label: "Create Repack" },
+                            ]}
+                        />
                         <SideNavDropdown
                             label="Consolidations"
                             basePath="/consolidated"

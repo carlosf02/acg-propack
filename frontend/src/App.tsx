@@ -8,6 +8,8 @@ import ListWarehousePage from "./features/warehouse/pages/ListWarehousePage";
 import CreateWarehousePage from "./features/warehouse/pages/CreateWarehousePage";
 import CreateConsolidationPage from "./features/consolidation/pages/CreateConsolidationPage";
 import ListConsolidationPage from "./features/consolidation/pages/ListConsolidationPage";
+import CreateRepackingPage from "./features/warehouse/pages/CreateRepackingPage";
+import ListRepackingPage from "./features/warehouse/pages/ListRepackingPage";
 
 function PlaceholderPage(props: { title: string }) {
   return <h1 style={{ marginTop: 0 }}>{props.title}</h1>;
@@ -34,7 +36,8 @@ export default function App() {
         <Route path="/receiving" element={<PlaceholderPage title="Receiving" />} />
         <Route path="/inventory" element={<PlaceholderPage title="Inventory" />} />
         <Route path="/shipping" element={<PlaceholderPage title="Shipping" />} />
-        <Route path="/repacking" element={<PlaceholderPage title="Repacking" />} />
+        <Route path="/repacking" element={<ListRepackingPage />} />
+        <Route path="/repacking/new" element={<CreateRepackingPage />} />
         {/* Consolidations */}
         <Route path="/consolidated" element={<ListConsolidationPage />} />
         <Route path="/consolidated/new" element={<CreateConsolidationPage />} />
