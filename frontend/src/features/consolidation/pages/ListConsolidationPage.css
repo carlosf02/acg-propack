@@ -1,0 +1,361 @@
+/* ── List Consolidation Page ── */
+
+.lcp-container {
+    padding: 0;
+    max-width: 1400px;
+    margin: 0;
+    animation: lcp-fadeIn 0.4s ease-out;
+}
+
+@keyframes lcp-fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ── Header ── */
+
+.lcp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.lcp-header h2 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+}
+
+.lcp-create-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #0052cc;
+    color: #ffffff;
+    padding: 9px 18px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14px;
+    transition: background 0.2s, transform 0.15s;
+}
+
+.lcp-create-btn:hover {
+    background: #003fa3;
+    transform: translateY(-1px);
+}
+
+/* ── Stats badge ── */
+
+.lcp-stats-card {
+    display: flex;
+    align-items: center;
+    background: #ffffff;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    padding: 8px 16px;
+    gap: 16px;
+}
+
+.lcp-stat-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.lcp-stat-divider {
+    height: 24px;
+    width: 1px;
+    background-color: #e5e7eb;
+}
+
+.lcp-stat-label {
+    font-size: 13px;
+    color: #6b7280;
+    text-transform: uppercase;
+    font-weight: 500;
+}
+
+.lcp-stat-value {
+    font-size: 15px;
+    font-weight: 700;
+    color: #111827;
+}
+
+/* ── Card ── */
+
+.lcp-card {
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02);
+    padding: 24px;
+    border: 1px solid #f3f4f6;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* ── Labels / Inputs / Selects ── */
+
+.lcp-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+    display: block;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.lcp-input,
+.lcp-select {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #111827;
+    background-color: #f9fafb;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+    font-family: inherit;
+}
+
+.lcp-input:focus,
+.lcp-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+/* ── Search row (input + field selector side-by-side) ── */
+
+.lcp-search-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+}
+
+.lcp-search-field {
+    flex: 1;
+    min-width: 0;
+}
+
+.lcp-search-by-field {
+    flex: 0 0 200px;
+}
+
+/* ── Filters row ── */
+
+.lcp-filters-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+.lcp-filter-group {
+    flex: 1;
+    min-width: 160px;
+}
+
+/* ── Divider between filter sections ── */
+
+.lcp-section-divider {
+    height: 1px;
+    background: #f3f4f6;
+    border: none;
+    margin: 0;
+}
+
+/* ── Table ── */
+
+.lcp-table-responsive {
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+}
+
+.lcp-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.lcp-table th {
+    background-color: #f9fafb;
+    color: #6b7280;
+    font-size: 12px;
+    text-transform: uppercase;
+    font-weight: 600;
+    padding: 14px 20px;
+    border-bottom: 1px solid #e5e7eb;
+    letter-spacing: 0.5px;
+}
+
+.lcp-table td {
+    padding: 14px 20px;
+    font-size: 14px;
+    color: #374151;
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: middle;
+}
+
+.lcp-row-even {
+    background-color: #ffffff;
+}
+
+.lcp-row-odd {
+    background-color: #f9fafb;
+}
+
+.lcp-table tr:hover {
+    background-color: #f0f7ff;
+    cursor: pointer;
+}
+
+/* ── Consolidation number badge ── */
+
+.lcp-con-number {
+    font-weight: 700;
+    color: #2563eb;
+    font-size: 14px;
+}
+
+/* ── Warehouse count chip ── */
+
+.lcp-wh-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-radius: 12px;
+    padding: 2px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    min-width: 28px;
+}
+
+/* ── Type badge ── */
+
+.lcp-type-badge {
+    display: inline-block;
+    background: #f3f4f6;
+    color: #374151;
+    border-radius: 12px;
+    padding: 2px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+/* ── Shipping method badge ── */
+
+.lcp-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.lcp-badge-air {
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.lcp-badge-sea {
+    background: #ecfdf5;
+    color: #065f46;
+}
+
+.lcp-badge-ground {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+/* ── Pagination ── */
+
+.lcp-pagination-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.lcp-rows-selector {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.lcp-select-inline {
+    width: auto;
+    padding: 6px 28px 6px 10px;
+}
+
+.lcp-pagination-controls {
+    display: flex;
+    gap: 4px;
+}
+
+.lcp-page-btn {
+    border: 1px solid #e5e7eb;
+    background-color: #ffffff;
+    color: #374151;
+    min-width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.lcp-page-btn:hover:not(:disabled) {
+    background-color: #f3f4f6;
+    border-color: #d1d5db;
+}
+
+.lcp-page-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.lcp-page-active {
+    background-color: #3b82f6;
+    color: #ffffff;
+    border-color: #3b82f6;
+}
+
+.lcp-page-active:hover {
+    background-color: #2563eb !important;
+    border-color: #2563eb !important;
+}
+
+.lcp-page-arrow {
+    color: #9ca3af;
+}

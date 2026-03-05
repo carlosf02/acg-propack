@@ -6,6 +6,8 @@ import CreateLockerPage from "./features/clients/pages/CreateLockerPage";
 import ListLockerPage from "./features/clients/pages/ListLockerPage";
 import ListWarehousePage from "./features/warehouse/pages/ListWarehousePage";
 import CreateWarehousePage from "./features/warehouse/pages/CreateWarehousePage";
+import CreateConsolidationPage from "./features/consolidation/pages/CreateConsolidationPage";
+import ListConsolidationPage from "./features/consolidation/pages/ListConsolidationPage";
 
 function PlaceholderPage(props: { title: string }) {
   return <h1 style={{ marginTop: 0 }}>{props.title}</h1>;
@@ -33,7 +35,9 @@ export default function App() {
         <Route path="/inventory" element={<PlaceholderPage title="Inventory" />} />
         <Route path="/shipping" element={<PlaceholderPage title="Shipping" />} />
         <Route path="/repacking" element={<PlaceholderPage title="Repacking" />} />
-        <Route path="/consolidated" element={<PlaceholderPage title="Consolidated" />} />
+        {/* Consolidations */}
+        <Route path="/consolidated" element={<ListConsolidationPage />} />
+        <Route path="/consolidated/new" element={<CreateConsolidationPage />} />
         <Route path="/payments" element={<PlaceholderPage title="Payments" />} />
         <Route path="/billing" element={<PlaceholderPage title="Billing" />} />
         <Route path="/search" element={<PlaceholderPage title="Search" />} />
