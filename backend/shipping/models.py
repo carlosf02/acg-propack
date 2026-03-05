@@ -6,6 +6,7 @@ from receiving.models import WarehouseReceipt
 
 
 class Shipment(TimeStampedModel):
+    company = models.ForeignKey('company.Company', on_delete=models.PROTECT, related_name="shipments")
     shipment_number = models.CharField(max_length=50, unique=True, db_index=True)
     client = models.ForeignKey(Client, on_delete=models.PROTECT, related_name="shipments")
     from_warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, null=True, blank=True, related_name="shipments")
@@ -36,6 +37,7 @@ class Shipment(TimeStampedModel):
 
 
 class ShipmentItem(TimeStampedModel):
+    company = models.ForeignKey('company.Company', on_delete=models.PROTECT, related_name="shipment_items")
     shipment = models.ForeignKey(Shipment, on_delete=models.CASCADE, related_name="items")
     wr = models.ForeignKey(WarehouseReceipt, on_delete=models.PROTECT, related_name="shipment_items")
 

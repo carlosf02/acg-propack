@@ -1,11 +1,13 @@
 from rest_framework import serializers, viewsets, filters
 from django_filters.rest_framework import DjangoFilterBackend
+from core.mixins import CompanyScopedViewSetMixin
 from .models import Warehouse, StorageLocation
 
 class WarehouseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Warehouse
         fields = '__all__'
+        read_only_fields = ['company']
 
 class WarehouseMinimalSerializer(serializers.ModelSerializer):
     class Meta:
@@ -18,8 +20,9 @@ class StorageLocationSerializer(serializers.ModelSerializer):
     class Meta:
         model = StorageLocation
         fields = '__all__'
+        read_only_fields = ['company']
 
-class WarehouseViewSet(viewsets.ModelViewSet):
+class WarehouseViewSet(CompanyScopedViewSetMixin, viewsets.ModelViewSet):
     queryset = Warehouse.objects.all()
     serializer_class = WarehouseSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -28,7 +31,7 @@ class WarehouseViewSet(viewsets.ModelViewSet):
     ordering_fields = ['code', 'name', 'created_at']
     ordering = ['code']
 
-class StorageLocationViewSet(viewsets.ModelViewSet):
+class StorageLocationViewSet(CompanyScopedViewSetMixin, viewsets.ModelViewSet):
     queryset = StorageLocation.objects.all()
     serializer_class = StorageLocationSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]

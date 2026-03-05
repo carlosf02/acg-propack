@@ -1,4 +1,5 @@
 from rest_framework import serializers, viewsets, status
+from core.mixins import CompanyScopedViewSetMixin
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
@@ -18,6 +19,7 @@ class ShipmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Shipment
         fields = '__all__'
+        read_only_fields = ['company']
 
 class AddItemsSerializer(serializers.Serializer):
     wr_ids = serializers.ListField(
@@ -31,7 +33,7 @@ class ShipRequestSerializer(serializers.Serializer):
     shipped_at = serializers.DateTimeField(required=False, allow_null=True)
     notes = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
-class ShipmentViewSet(viewsets.ModelViewSet):
+class ShipmentViewSet(CompanyScopedViewSetMixin, viewsets.ModelViewSet):
     queryset = Shipment.objects.select_related('client', 'from_warehouse').all()
     serializer_class = ShipmentSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]

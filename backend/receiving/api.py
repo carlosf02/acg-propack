@@ -1,4 +1,5 @@
 from rest_framework import serializers, viewsets, filters
+from core.mixins import CompanyScopedViewSetMixin
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
@@ -32,6 +33,7 @@ class WarehouseReceiptSerializer(serializers.ModelSerializer):
     class Meta:
         model = WarehouseReceipt
         fields = '__all__'
+        read_only_fields = ['company']
 
     def validate(self, data):
         # Validate dimensions and weights
@@ -41,7 +43,7 @@ class WarehouseReceiptSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError({field: f"{field} cannot be negative."})
         return data
 
-class WarehouseReceiptViewSet(viewsets.ModelViewSet):
+class WarehouseReceiptViewSet(CompanyScopedViewSetMixin, viewsets.ModelViewSet):
     queryset = WarehouseReceipt.objects.all()
     serializer_class = WarehouseReceiptSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]

@@ -14,6 +14,7 @@ class DimensionUnit(models.TextChoices):
     CM = "CM", "Centimeters"
 
 class WarehouseReceipt(TimeStampedModel):
+    company = models.ForeignKey('company.Company', on_delete=models.PROTECT, related_name="warehouse_receipts")
     id = models.BigAutoField(primary_key=True)
     wr_number = models.CharField(max_length=50, unique=True, db_index=True)
     client = models.ForeignKey(Client, on_delete=models.PROTECT, related_name="warehouse_receipts")
@@ -61,6 +62,7 @@ class OperationType(models.TextChoices):
     REPACK = "REPACK", "Repack"
 
 class RepackOperation(TimeStampedModel):
+    company = models.ForeignKey('company.Company', on_delete=models.PROTECT, related_name="repack_operations")
     client = models.ForeignKey(Client, on_delete=models.PROTECT, related_name="repack_operations")
     performed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="repack_operations")
     performed_at = models.DateTimeField(default=timezone.now)
@@ -76,6 +78,7 @@ class RepackOperation(TimeStampedModel):
         return f"Repack {self.id} ({self.operation_type}) - {self.client.client_code}"
 
 class RepackLink(TimeStampedModel):
+    company = models.ForeignKey('company.Company', on_delete=models.PROTECT, related_name="repack_links")
     repack_operation = models.ForeignKey(RepackOperation, on_delete=models.CASCADE, related_name="links")
     input_wr = models.ForeignKey(WarehouseReceipt, on_delete=models.PROTECT, related_name="repack_as_input")
     output_wr = models.ForeignKey(WarehouseReceipt, on_delete=models.PROTECT, related_name="repack_as_output")

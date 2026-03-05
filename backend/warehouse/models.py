@@ -2,6 +2,7 @@ from django.db import models
 from core.models import TimeStampedModel
 
 class Warehouse(TimeStampedModel):
+    company = models.ForeignKey('company.Company', on_delete=models.PROTECT, related_name="warehouses")
     code = models.CharField(max_length=20, unique=True, db_index=True)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
@@ -26,6 +27,7 @@ class LocationType(models.TextChoices):
     STAGING = "STAGING", "Staging"
 
 class StorageLocation(TimeStampedModel):
+    company = models.ForeignKey('company.Company', on_delete=models.PROTECT, related_name="storage_locations")
     warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, related_name="locations")
     code = models.CharField(max_length=50, db_index=True)
     description = models.CharField(max_length=255, blank=True, null=True)
