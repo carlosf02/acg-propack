@@ -20,4 +20,6 @@ export interface PackageFormData {
     weight: number | "";
     pieces: number | "";
     volume: number; // Calculated based on L * W * H
+    repackable: boolean;
+    billInvoice: boolean;
 }
