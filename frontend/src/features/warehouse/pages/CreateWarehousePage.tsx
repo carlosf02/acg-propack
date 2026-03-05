@@ -35,6 +35,8 @@ export default function CreateWarehousePage() {
         { ...INITIAL_PACKAGE, id: Date.now().toString() }
     ]);
 
+    const [allowRepacking, setAllowRepacking] = useState(false);
+
     // Helpers to modify package array inline
     const handlePackageChange = (index: number, field: keyof PackageFormData, value: any) => {
         setPackages(prev => {
@@ -103,9 +105,41 @@ export default function CreateWarehousePage() {
                     <h2 style={{ margin: 0, fontSize: "20px", color: "#333" }}>Packages</h2>
 
                     {/* Scanner Buttons requested at top level */}
-                    <button type="button" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 12px", background: "#9c6bd1ff", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "14px", fontWeight: 600 }}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="M5.713 20.713Q5.425 21 5 21H2q-.425 0-.712-.288T1 20v-3q0-.425.288-.712T2 16t.713.288T3 17v2h2q.425 0 .713.288T6 20t-.288.713m17-4.426Q23 16.575 23 17v3q0 .425-.288.713T22 21h-3q-.425 0-.712-.288T18 20t.288-.712T19 19h2v-2q0-.425.288-.712T22 16t.713.288M4.5 18q-.2 0-.35-.15T4 17.5v-11q0-.2.15-.35T4.5 6h1q.2 0 .35.15T6 6.5v11q0 .2-.15.35T5.5 18zm2.65-.15Q7 17.7 7 17.5v-11q0-.2.15-.35T7.5 6t.35.15t.15.35v11q0 .2-.15.35T7.5 18t-.35-.15m3.35.15q-.2 0-.35-.15T10 17.5v-11q0-.2.15-.35T10.5 6h1q.2 0 .35.15t.15.35v11q0 .2-.15.35t-.35.15zm3 0q-.2 0-.35-.15T13 17.5v-11q0-.2.15-.35T13.5 6h2q.2 0 .35.15t.15.35v11q0 .2-.15.35t-.35.15zm3.65-.15Q17 17.7 17 17.5v-11q0-.2.15-.35T17.5 6t.35.15t.15.35v11q0 .2-.15.35t-.35.15t-.35-.15m2 0Q19 17.7 19 17.5v-11q0-.2.15-.35T19.5 6t.35.15t.15.35v11q0 .2-.15.35t-.35.15t-.35-.15M5.713 4.712Q5.425 5 5 5H3v2q0 .425-.288.713T2 8t-.712-.288T1 7V4q0-.425.288-.712T2 3h3q.425 0 .713.288T6 4t-.288.713m12.576-1.425Q18.575 3 19 3h3q.425 0 .713.288T23 4v3q0 .425-.288.713T22 8t-.712-.288T21 7V5h-2q-.425 0-.712-.288T18 4t.288-.712" /></svg> Scan
-                    </button>
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        {/* Allow Repacking Toggle */}
+                        <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", userSelect: "none", fontSize: "14px", fontWeight: 600, color: "#444" }}>
+                            <div
+                                onClick={() => setAllowRepacking(prev => !prev)}
+                                style={{
+                                    position: "relative",
+                                    width: "42px",
+                                    height: "24px",
+                                    borderRadius: "12px",
+                                    background: allowRepacking ? "#22c55e" : "#ccc",
+                                    transition: "background 0.25s",
+                                    cursor: "pointer",
+                                    flexShrink: 0,
+                                }}
+                            >
+                                <div style={{
+                                    position: "absolute",
+                                    top: "3px",
+                                    left: allowRepacking ? "21px" : "3px",
+                                    width: "18px",
+                                    height: "18px",
+                                    borderRadius: "50%",
+                                    background: "white",
+                                    boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
+                                    transition: "left 0.25s",
+                                }} />
+                            </div>
+                            Allow Repacking
+                        </label>
+
+                        <button type="button" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 12px", background: "#9c6bd1ff", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "14px", fontWeight: 600 }}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="M5.713 20.713Q5.425 21 5 21H2q-.425 0-.712-.288T1 20v-3q0-.425.288-.712T2 16t.713.288T3 17v2h2q.425 0 .713.288T6 20t-.288.713m17-4.426Q23 16.575 23 17v3q0 .425-.288.713T22 21h-3q-.425 0-.712-.288T18 20t.288-.712T19 19h2v-2q0-.425.288-.712T22 16t.713.288M4.5 18q-.2 0-.35-.15T4 17.5v-11q0-.2.15-.35T4.5 6h1q.2 0 .35.15T6 6.5v11q0 .2-.15.35T5.5 18zm2.65-.15Q7 17.7 7 17.5v-11q0-.2.15-.35T7.5 6t.35.15t.15.35v11q0 .2-.15.35T7.5 18t-.35-.15m3.35.15q-.2 0-.35-.15T10 17.5v-11q0-.2.15-.35T10.5 6h1q.2 0 .35.15t.15.35v11q0 .2-.15.35t-.35.15zm3 0q-.2 0-.35-.15T13 17.5v-11q0-.2.15-.35T13.5 6h2q.2 0 .35.15t.15.35v11q0 .2-.15.35t-.35.15zm3.65-.15Q17 17.7 17 17.5v-11q0-.2.15-.35T17.5 6t.35.15t.15.35v11q0 .2-.15.35t-.35.15t-.35-.15m2 0Q19 17.7 19 17.5v-11q0-.2.15-.35T19.5 6t.35.15t.15.35v11q0 .2-.15.35t-.35.15t-.35-.15M5.713 4.712Q5.425 5 5 5H3v2q0 .425-.288.713T2 8t-.712-.288T1 7V4q0-.425.288-.712T2 3h3q.425 0 .713.288T6 4t-.288.713m12.576-1.425Q18.575 3 19 3h3q.425 0 .713.288T23 4v3q0 .425-.288.713T22 8t-.712-.288T21 7V5h-2q-.425 0-.712-.288T18 4t.288-.712" /></svg> Scan
+                        </button>
+                    </div>
                 </div>
 
                 <PackagesTable

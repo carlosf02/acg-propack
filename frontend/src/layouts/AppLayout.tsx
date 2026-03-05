@@ -168,7 +168,14 @@ export default function AppLayout() {
                             ]}
                         />
                         <SideNavItem to="/repacking" label="Repacking" />
-                        <SideNavItem to="/consolidated" label="Consolidated" />
+                        <SideNavDropdown
+                            label="Consolidations"
+                            basePath="/consolidated"
+                            items={[
+                                { to: "/consolidated", label: "List Consolidations" },
+                                { to: "/consolidated/new", label: "Create Consolidation" },
+                            ]}
+                        />
                         <SideNavDropdown
                             label="Lockers"
                             basePath="/clients"
