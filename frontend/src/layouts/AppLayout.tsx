@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import acgLogo from "../assets/acg-logo.png";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 
 function TopMenuButton(props: { label: string }) {
@@ -6,11 +7,13 @@ function TopMenuButton(props: { label: string }) {
         <button
             type="button"
             style={{
-                border: "1px solid rgba(0,0,0,0.15)",
-                background: "white",
+                border: "none",
+                background: "transparent",
+                color: "white",
                 padding: "8px 10px",
-                borderRadius: 6,
-                cursor: "default",
+                cursor: "pointer",
+                fontSize: 14,
+                fontWeight: 500,
             }}
         >
             {props.label}
@@ -108,27 +111,18 @@ export default function AppLayout() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    padding: "0 16px",
-                    background: "#eee",
-                    borderBottom: "1px solid #ddd",
+                    padding: "0 16px 0 0px",
+                    background: "rgba(38, 121, 198, 1)",
+                    borderBottom: "1px solid rgba(0,0,0,0.2)",
                 }}
             >
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <Link to="/" style={{ textDecoration: "none", color: "inherit" }}>
-                        <div
-                            style={{
-                                width: 140,
-                                height: 36,
-                                border: "1px solid #ddd",
-                                background: "white",
-                                borderRadius: 6,
-                                display: "grid",
-                                placeItems: "center",
-                                fontWeight: 700,
-                            }}
-                        >
-                            AGC ProPack
-                        </div>
+                    <Link to="/" style={{ textDecoration: "none", color: "inherit", position: "relative", top: 6 }}>
+                        <img
+                            src={acgLogo}
+                            alt="ACG ProPack"
+                            style={{ height: 90, width: "auto", display: "block", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.45))" }}
+                        />
                     </Link>
 
                     <div style={{ display: "flex", gap: 8 }}>
@@ -138,19 +132,26 @@ export default function AppLayout() {
                     </div>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ fontSize: 18 }}>👤</span>
-                    <TopMenuButton label="User" />
-                    <Link to="/backend-connected" style={{ textDecoration: "none" }}>
-                        <TopMenuButton label="Backend Connected" />
-                    </Link>
+                <div style={{ display: "flex", alignItems: "center" }}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" style={{ color: "white", flexShrink: 0 }}>
+                        <path fill="currentColor" d="M12 2a5 5 0 1 1-5 5l.005-.217A5 5 0 0 1 12 2m2 12a5 5 0 0 1 5 5v1a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-1a5 5 0 0 1 5-5z" />
+                    </svg>
+                    <div style={{ marginLeft: -4 }}>
+                        <TopMenuButton label="User" />
+                    </div>
+                    <div style={{ marginLeft: 16 }}>
+                        <Link to="/backend-connected" style={{ textDecoration: "none" }}>
+                            <TopMenuButton label="Backend Connected" />
+                        </Link>
+                    </div>
                 </div>
             </header>
 
             <div style={{ display: "flex" }}>
                 <aside
                     style={{
-                        width: 240,
+                        width: 200,
+                        flexShrink: 0,
                         minHeight: "calc(100vh - 60px)",
                         background: "#2b3a55",
                         color: "white",
@@ -158,7 +159,14 @@ export default function AppLayout() {
                 >
                     <nav>
                         <SideNavItem to="/" label="Home" />
-                        <SideNavItem to="/warehouses" label="Warehouses" />
+                        <SideNavDropdown
+                            label="Warehouses"
+                            basePath="/warehouses"
+                            items={[
+                                { to: "/warehouses", label: "List Warehouses" },
+                                { to: "/warehouses/new", label: "Create Warehouse" },
+                            ]}
+                        />
                         <SideNavItem to="/repacking" label="Repacking" />
                         <SideNavItem to="/consolidated" label="Consolidated" />
                         <SideNavDropdown

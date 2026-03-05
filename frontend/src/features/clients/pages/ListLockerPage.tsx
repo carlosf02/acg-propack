@@ -80,7 +80,7 @@ export default function ListLockerPage() {
     return (
         <div className="llp-container">
             {/* Header Section with Inline Stats */}
-            <div className="llp-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <div className="llp-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h2 style={{ margin: 0 }}>Lockers</h2>
                 <div className="llp-stats-card">
                     <div className="llp-stat-item">
