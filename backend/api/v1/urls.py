@@ -21,6 +21,7 @@ router.register(r'consolidations', ConsolidationViewSet, basename='consolidation
 urlpatterns = [
     path('health/', views.health_check, name='health_check'),
     path('auth-check/', views.auth_check, name='auth_check'),
+    path('csrf/', views.csrf, name='csrf'),
     path('', include('company.urls')),
     path('inventory/', include('inventory.urls')),
     path('repack/', include('receiving.urls')),

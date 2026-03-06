@@ -142,6 +142,15 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
 ]
 
+# Required for the SPA to send cookies (session + CSRF) cross-origin.
+CORS_ALLOW_CREDENTIALS = True
+
+# Allow the SPA origins to pass Django's CSRF origin check.
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
