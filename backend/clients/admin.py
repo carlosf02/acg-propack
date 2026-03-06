@@ -5,9 +5,9 @@ from .models import Client, UserProfile
 
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
-    list_display = ("client_code", "name", "is_active", "created_at")
-    search_fields = ("client_code", "name", "email")
-    list_filter = ("is_active",)
+    list_display = ('client_code', 'company', 'name', 'email', 'phone', 'is_active')
+    search_fields = ('client_code', 'company__name', 'name', 'email')
+    list_filter = ('company', 'is_active', 'created_at')
     ordering = ("client_code",)
 
 class UserProfileInline(admin.StackedInline):

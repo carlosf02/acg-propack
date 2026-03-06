@@ -1,5 +1,6 @@
 from rest_framework import serializers, viewsets, filters
 from django_filters.rest_framework import DjangoFilterBackend
+from core.mixins import CompanyScopedViewSetMixin
 from .models import InventoryBalance
 
 class InvClientMinimalSerializer(serializers.ModelSerializer):
@@ -40,7 +41,7 @@ class InventoryBalanceSerializer(serializers.ModelSerializer):
             'client_details', 'warehouse_details', 'location_details', 'wr_details'
         ]
 
-class InventoryBalanceViewSet(viewsets.ReadOnlyModelViewSet):
+class InventoryBalanceViewSet(CompanyScopedViewSetMixin, viewsets.ReadOnlyModelViewSet):
     queryset = InventoryBalance.objects.select_related(
         'client', 'warehouse', 'location', 'wr'
     ).all()

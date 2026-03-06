@@ -8,6 +8,7 @@ from receiving.models import WarehouseReceipt
 
 
 class InventoryBalance(TimeStampedModel):
+    company = models.ForeignKey('company.Company', on_delete=models.PROTECT, related_name="inventory_balances")
     client = models.ForeignKey(Client, on_delete=models.PROTECT, related_name="inventory_balances")
     warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, related_name="inventory_balances")
     location = models.ForeignKey(StorageLocation, on_delete=models.PROTECT, related_name="inventory_balances")
@@ -34,6 +35,7 @@ class InventoryBalance(TimeStampedModel):
 
 
 class InventoryTransaction(TimeStampedModel):
+    company = models.ForeignKey('company.Company', on_delete=models.PROTECT, related_name="inventory_transactions")
     client = models.ForeignKey(Client, on_delete=models.PROTECT, related_name="inventory_transactions")
     txn_type = models.CharField(max_length=20, choices=TxnType.choices)
     reference_type = models.CharField(max_length=50, blank=True, null=True)
@@ -53,6 +55,7 @@ class InventoryTransaction(TimeStampedModel):
 
 
 class InventoryTransactionLine(TimeStampedModel):
+    company = models.ForeignKey('company.Company', on_delete=models.PROTECT, related_name="inventory_transaction_lines")
     transaction = models.ForeignKey(InventoryTransaction, on_delete=models.CASCADE, related_name="lines")
     wr = models.ForeignKey(WarehouseReceipt, on_delete=models.PROTECT, related_name="inventory_transaction_lines")
     from_location = models.ForeignKey(StorageLocation, on_delete=models.PROTECT, null=True, blank=True, related_name="txn_lines_from")

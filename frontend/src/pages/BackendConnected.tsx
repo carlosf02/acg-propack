@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
-import { getHealth, HealthResponse } from '../api/endpoints';
-import { ApiError } from '../api/client';
+import { apiGet, ApiError } from '../api/client';
+
+interface HealthResponse {
+    status?: string;
+    message?: string;
+    [key: string]: unknown;
+}
 
 export default function BackendConnected() {
     const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -11,7 +16,7 @@ export default function BackendConnected() {
         setStatus('loading');
         setError(null);
         try {
-            const data = await getHealth();
+            const data = await apiGet<HealthResponse>('/api/health');
             setResponse(data);
             setStatus('success');
         } catch (err: unknown) {

@@ -50,6 +50,8 @@ INSTALLED_APPS = [
     "receiving",
     "inventory",
     "shipping",
+    "company",
+    "consolidation",
 ]
 
 MIDDLEWARE = [
@@ -136,6 +138,15 @@ STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+# Required for the SPA to send cookies (session + CSRF) cross-origin.
+CORS_ALLOW_CREDENTIALS = True
+
+# Allow the SPA origins to pass Django's CSRF origin check.
+CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
