@@ -7,13 +7,16 @@ from receiving.models import WarehouseReceipt, WRStatus, RepackOperation, Operat
 from shipping.models import Shipment, ShipmentItem
 from core.models import ShipmentStatus
 from inventory.models import InventoryBalance, InventoryTransaction, InventoryTransactionLine, TxnType
+from company.models import Company, CompanyMember
 
 User = get_user_model()
 
 @pytest.fixture
-def auth_client():
+def auth_client(setup_data):
     client = APIClient()
     user = User.objects.create_user(username='testuser', password='password')
+    company = setup_data["wr_move"].company
+    CompanyMember.objects.create(company=company, user=user, is_active=True)
     client.force_authenticate(user=user)
     return client
 
@@ -23,45 +26,46 @@ def api_client():
 
 @pytest.fixture
 def setup_data():
-    client = Client.objects.create(client_code="C1", name="Client 1")
-    warehouse = Warehouse.objects.create(code="W1", name="Warehouse 1")
-    loc1 = StorageLocation.objects.create(warehouse=warehouse, code="LOC-1")
-    loc2 = StorageLocation.objects.create(warehouse=warehouse, code="LOC-2")
+    company = Company.objects.create(name="Test Company")
+    client = Client.objects.create(company=company, client_code="C1", name="Client 1")
+    warehouse = Warehouse.objects.create(company=company, code="W1", name="Warehouse 1")
+    loc1 = StorageLocation.objects.create(company=company, warehouse=warehouse, code="LOC-1")
+    loc2 = StorageLocation.objects.create(company=company, warehouse=warehouse, code="LOC-2")
     
     user = User.objects.create_user(username='fixtureuser')
-    wr_move = WarehouseReceipt.objects.create(wr_number="WR-MOVE", client=client, received_warehouse=warehouse, status=WRStatus.ACTIVE)
-    InventoryBalance.objects.create(client=client, warehouse=warehouse, location=loc2, wr=wr_move, on_hand_qty=1)
+    wr_move = WarehouseReceipt.objects.create(company=company, wr_number="WR-MOVE", client=client, received_warehouse=warehouse, status=WRStatus.ACTIVE)
+    InventoryBalance.objects.create(company=company, client=client, warehouse=warehouse, location=loc2, wr=wr_move, on_hand_qty=1)
     
-    txn_move = InventoryTransaction.objects.create(client=client, txn_type=TxnType.MOVE, performed_by=user)
-    InventoryTransactionLine.objects.create(transaction=txn_move, wr=wr_move, from_location=loc1, to_location=loc2, qty=1)
+    txn_move = InventoryTransaction.objects.create(company=company, client=client, txn_type=TxnType.MOVE, performed_by=user)
+    InventoryTransactionLine.objects.create(company=company, transaction=txn_move, wr=wr_move, from_location=loc1, to_location=loc2, qty=1)
     
-    wr_in1 = WarehouseReceipt.objects.create(wr_number="WR-IN-1", client=client, status=WRStatus.INACTIVE)
-    wr_in2 = WarehouseReceipt.objects.create(wr_number="WR-IN-2", client=client, status=WRStatus.INACTIVE)
-    wr_out = WarehouseReceipt.objects.create(wr_number="WR-OUT", client=client, status=WRStatus.ACTIVE)
+    wr_in1 = WarehouseReceipt.objects.create(company=company, wr_number="WR-IN-1", client=client, status=WRStatus.INACTIVE)
+    wr_in2 = WarehouseReceipt.objects.create(company=company, wr_number="WR-IN-2", client=client, status=WRStatus.INACTIVE)
+    wr_out = WarehouseReceipt.objects.create(company=company, wr_number="WR-OUT", client=client, status=WRStatus.ACTIVE)
     
     wr_in1.parent_wr = wr_out
     wr_in2.parent_wr = wr_out
     wr_in1.save()
     wr_in2.save()
     
-    InventoryBalance.objects.create(client=client, warehouse=warehouse, location=loc1, wr=wr_out, on_hand_qty=1)
+    InventoryBalance.objects.create(company=company, client=client, warehouse=warehouse, location=loc1, wr=wr_out, on_hand_qty=1)
     
-    op = RepackOperation.objects.create(client=client, operation_type=OperationType.CONSOLIDATE, performed_by=user)
-    RepackLink.objects.create(repack_operation=op, input_wr=wr_in1, output_wr=wr_out)
-    RepackLink.objects.create(repack_operation=op, input_wr=wr_in2, output_wr=wr_out)
+    op = RepackOperation.objects.create(company=company, client=client, operation_type=OperationType.CONSOLIDATE, performed_by=user)
+    RepackLink.objects.create(company=company, repack_operation=op, input_wr=wr_in1, output_wr=wr_out)
+    RepackLink.objects.create(company=company, repack_operation=op, input_wr=wr_in2, output_wr=wr_out)
     
-    txn_consume = InventoryTransaction.objects.create(client=client, txn_type=TxnType.REPACK_CONSUME, reference_type="REPACK_OP", reference_id=str(op.id), performed_by=user)
-    InventoryTransactionLine.objects.create(transaction=txn_consume, wr=wr_in1, from_location=loc1, qty=1)
+    txn_consume = InventoryTransaction.objects.create(company=company, client=client, txn_type=TxnType.REPACK_CONSUME, reference_type="REPACK_OP", reference_id=str(op.id), performed_by=user)
+    InventoryTransactionLine.objects.create(company=company, transaction=txn_consume, wr=wr_in1, from_location=loc1, qty=1)
     
-    txn_produce = InventoryTransaction.objects.create(client=client, txn_type=TxnType.REPACK_PRODUCE, reference_type="REPACK_OP", reference_id=str(op.id), performed_by=user)
-    InventoryTransactionLine.objects.create(transaction=txn_produce, wr=wr_out, to_location=loc1, qty=1)
+    txn_produce = InventoryTransaction.objects.create(company=company, client=client, txn_type=TxnType.REPACK_PRODUCE, reference_type="REPACK_OP", reference_id=str(op.id), performed_by=user)
+    InventoryTransactionLine.objects.create(company=company, transaction=txn_produce, wr=wr_out, to_location=loc1, qty=1)
 
-    shipment = Shipment.objects.create(shipment_number="SHP-TRACE", client=client, status=ShipmentStatus.SHIPPED)
-    wr_ship = WarehouseReceipt.objects.create(wr_number="WR-SHIP", client=client, status=WRStatus.SHIPPED)
-    ShipmentItem.objects.create(shipment=shipment, wr=wr_ship)
+    shipment = Shipment.objects.create(company=company, shipment_number="SHP-TRACE", client=client, status=ShipmentStatus.SHIPPED)
+    wr_ship = WarehouseReceipt.objects.create(company=company, wr_number="WR-SHIP", client=client, status=WRStatus.SHIPPED)
+    ShipmentItem.objects.create(company=company, shipment=shipment, wr=wr_ship)
     
-    txn_ship = InventoryTransaction.objects.create(client=client, txn_type=TxnType.SHIP, reference_type="SHIPMENT", reference_id=str(shipment.id), performed_by=user)
-    InventoryTransactionLine.objects.create(transaction=txn_ship, wr=wr_ship, from_location=loc1, qty=1)
+    txn_ship = InventoryTransaction.objects.create(company=company, client=client, txn_type=TxnType.SHIP, reference_type="SHIPMENT", reference_id=str(shipment.id), performed_by=user)
+    InventoryTransactionLine.objects.create(company=company, transaction=txn_ship, wr=wr_ship, from_location=loc1, qty=1)
 
     return {
         "wr_move": wr_move, "loc2": loc2, 

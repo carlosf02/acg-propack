@@ -5,13 +5,22 @@ from core.models import TimeStampedModel, WRStatus
 from clients.models import Client
 from warehouse.models import Warehouse
 
+
 class WeightUnit(models.TextChoices):
     LB = "LB", "Pounds"
     KG = "KG", "Kilograms"
 
+
 class DimensionUnit(models.TextChoices):
     IN = "IN", "Inches"
     CM = "CM", "Centimeters"
+
+
+class ShippingMethod(models.TextChoices):
+    AIR = "air", "Air"
+    SEA = "sea", "Sea"
+    GROUND = "ground", "Ground"
+
 
 class WarehouseReceipt(TimeStampedModel):
     company = models.ForeignKey('company.Company', on_delete=models.PROTECT, related_name="warehouse_receipts")
@@ -24,10 +33,9 @@ class WarehouseReceipt(TimeStampedModel):
     status = models.CharField(max_length=20, choices=WRStatus.choices, default=WRStatus.ACTIVE)
     received_at = models.DateTimeField(default=timezone.now)
 
-    # Measurements
+    # Measurements (legacy single-item; new multi-item flow uses WarehouseReceiptLine)
     weight_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     weight_unit = models.CharField(max_length=5, choices=WeightUnit.choices, default=WeightUnit.LB)
-    
     length = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     width = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     height = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
@@ -35,10 +43,30 @@ class WarehouseReceipt(TimeStampedModel):
 
     # Traceability
     parent_wr = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="child_wrs")
-    
+
     # Optional fields
     description = models.TextField(blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
+
+    # ── New header fields matching the "Warehouse Info" card in the UI ──────────
+    associate_company = models.ForeignKey(
+        'company.AssociateCompany',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="warehouse_receipts",
+    )
+    shipping_method = models.CharField(
+        max_length=20,
+        choices=ShippingMethod.choices,
+        null=True,
+        blank=True,
+    )
+    receipt_type = models.CharField(max_length=50, null=True, blank=True)
+    location_note = models.CharField(max_length=255, null=True, blank=True)
+    recipient_name = models.CharField(max_length=255, null=True, blank=True)
+    recipient_address = models.TextField(null=True, blank=True)
+    allow_repacking = models.BooleanField(default=False)
 
     class Meta:
         indexes = [
@@ -52,14 +80,63 @@ class WarehouseReceipt(TimeStampedModel):
                 condition=models.Q(tracking_number__isnull=False)
             )
         ]
-        
+
     def __str__(self):
         return f"{self.wr_number} ({self.client.client_code})"
+
+
+class WarehouseReceiptLine(TimeStampedModel):
+    """
+    One row in the packages table per receiving session.
+    Each line represents one physical package arriving with a receipt.
+    Company is denormalized from receipt.company for fast filtering.
+    """
+    receipt = models.ForeignKey(
+        WarehouseReceipt,
+        on_delete=models.CASCADE,
+        related_name="lines",
+    )
+    company = models.ForeignKey(
+        'company.Company',
+        on_delete=models.PROTECT,
+        related_name="receipt_lines",
+    )
+
+    date = models.DateField(null=True, blank=True)
+    carrier = models.CharField(max_length=50, null=True, blank=True)
+    package_type = models.CharField(max_length=50, null=True, blank=True)
+    tracking_number = models.CharField(max_length=100, null=True, blank=True)
+    description = models.TextField(null=True, blank=True)
+    declared_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    # Dimensions in inches
+    length = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    width = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    height = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    weight = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    pieces = models.PositiveIntegerField(default=1)
+    # Cubic feet: L*W*H / 1728. Stored so we don't recalculate on every read.
+    volume_cf = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True)
+
+    repackable = models.BooleanField(default=False)
+    bill_invoice = models.BooleanField(default=False)
+    notes = models.TextField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['receipt']),
+            models.Index(fields=['company']),
+        ]
+        ordering = ['id']
+
+    def __str__(self):
+        return f"Line {self.id} → {self.receipt.wr_number} ({self.package_type or 'pkg'})"
 
 
 class OperationType(models.TextChoices):
     CONSOLIDATE = "CONSOLIDATE", "Consolidate"
     REPACK = "REPACK", "Repack"
+
 
 class RepackOperation(TimeStampedModel):
     company = models.ForeignKey('company.Company', on_delete=models.PROTECT, related_name="repack_operations")
@@ -76,6 +153,7 @@ class RepackOperation(TimeStampedModel):
 
     def __str__(self):
         return f"Repack {self.id} ({self.operation_type}) - {self.client.client_code}"
+
 
 class RepackLink(TimeStampedModel):
     company = models.ForeignKey('company.Company', on_delete=models.PROTECT, related_name="repack_links")

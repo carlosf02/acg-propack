@@ -8,13 +8,15 @@ from receiving.models import WarehouseReceipt, WRStatus
 from shipping.models import Shipment, ShipmentItem
 from core.models import ShipmentStatus
 from inventory.models import InventoryBalance, InventoryTransaction, TxnType
+from company.models import Company, CompanyMember
 
 User = get_user_model()
 
 @pytest.fixture
-def auth_client():
+def auth_client(setup_data):
     client = APIClient()
     user = User.objects.create_user(username='testuser', password='password')
+    CompanyMember.objects.create(company=setup_data["wsh"].company, user=user, is_active=True)
     client.force_authenticate(user=user)
     return client
 
@@ -24,18 +26,19 @@ def api_client():
 
 @pytest.fixture
 def setup_data():
-    client1 = Client.objects.create(client_code="C1", name="Client 1")
-    client2 = Client.objects.create(client_code="C2", name="Client 2")
-    warehouse = Warehouse.objects.create(code="W1", name="Warehouse 1")
-    loc = StorageLocation.objects.create(warehouse=warehouse, code="LOC-1")
+    company = Company.objects.create(name="Test Company")
+    client1 = Client.objects.create(company=company, client_code="C1", name="Client 1")
+    client2 = Client.objects.create(company=company, client_code="C2", name="Client 2")
+    warehouse = Warehouse.objects.create(company=company, code="W1", name="Warehouse 1")
+    loc = StorageLocation.objects.create(company=company, warehouse=warehouse, code="LOC-1")
     
-    wr1 = WarehouseReceipt.objects.create(wr_number="WR-S-1", client=client1, received_warehouse=warehouse, status=WRStatus.ACTIVE)
-    wr2 = WarehouseReceipt.objects.create(wr_number="WR-S-2", client=client2, received_warehouse=warehouse, status=WRStatus.ACTIVE)
+    wr1 = WarehouseReceipt.objects.create(company=company, wr_number="WR-S-1", client=client1, received_warehouse=warehouse, status=WRStatus.ACTIVE)
+    wr2 = WarehouseReceipt.objects.create(company=company, wr_number="WR-S-2", client=client2, received_warehouse=warehouse, status=WRStatus.ACTIVE)
     
-    InventoryBalance.objects.create(client=client1, warehouse=warehouse, location=loc, wr=wr1, on_hand_qty=1)
-    InventoryBalance.objects.create(client=client2, warehouse=warehouse, location=loc, wr=wr2, on_hand_qty=1)
+    InventoryBalance.objects.create(company=company, client=client1, warehouse=warehouse, location=loc, wr=wr1, on_hand_qty=1)
+    InventoryBalance.objects.create(company=company, client=client2, warehouse=warehouse, location=loc, wr=wr2, on_hand_qty=1)
     
-    shipment = Shipment.objects.create(shipment_number="SHP-001", client=client1, from_warehouse=warehouse)
+    shipment = Shipment.objects.create(company=company, shipment_number="SHP-001", client=client1, from_warehouse=warehouse)
     
     return {"c1": client1, "c2": client2, "wsh": warehouse, "loc": loc, "wr1": wr1, "wr2": wr2, "shipment": shipment}
 
@@ -76,7 +79,7 @@ def test_ship_happy_path(auth_client, setup_data):
     wr = setup_data["wr1"]
     
     # Link item manually
-    ShipmentItem.objects.create(shipment=shipment, wr=wr)
+    ShipmentItem.objects.create(company=setup_data["wsh"].company, shipment=shipment, wr=wr)
     
     url = f'/api/v1/shipments/{shipment.id}/ship/'
     payload = {"carrier": "FedEx", "tracking_number": "F-123", "notes": "Dispatched"}
@@ -134,7 +137,7 @@ def test_reject_shipping_empty(auth_client, setup_data):
 
 @pytest.mark.django_db
 def test_reject_shipping_missing_balance(auth_client, setup_data):
-    ShipmentItem.objects.create(shipment=setup_data["shipment"], wr=setup_data["wr1"])
+    ShipmentItem.objects.create(company=setup_data["wsh"].company, shipment=setup_data["shipment"], wr=setup_data["wr1"])
     InventoryBalance.objects.filter(wr=setup_data["wr1"]).delete()
     
     url = f'/api/v1/shipments/{setup_data["shipment"].id}/ship/'

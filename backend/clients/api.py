@@ -7,16 +7,38 @@ from core.mixins import CompanyScopedViewSetMixin
 class ClientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Client
-        fields = '__all__'
-        read_only_fields = ['company']
+        fields = [
+            'id',
+            'client_code',
+            'client_type',
+            'name',
+            'last_name',
+            'email',
+            'cellphone',
+            'phone',
+            'home_phone',
+            'address',
+            'city',
+            'postal_code',
+            'is_active',
+            'company',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'client_code', 'company', 'created_at', 'updated_at']
+
+    def validate(self, data):
+        # Ensure name is provided
+        if not data.get('name') and not (self.instance and self.instance.name):
+            raise serializers.ValidationError({'name': 'This field is required.'})
+        return data
 
 
 class ClientViewSet(CompanyScopedViewSetMixin, viewsets.ModelViewSet):
     queryset = Client.objects.all()
     serializer_class = ClientSerializer
-    # permission_classes inherited from CompanyScopedViewSetMixin → CompanyObjectPermission
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['is_active']
-    search_fields = ['client_code', 'name', 'email']
+    filterset_fields = ['is_active', 'client_type']
+    search_fields = ['client_code', 'name', 'last_name', 'email', 'cellphone']
     ordering_fields = ['client_code', 'name', 'created_at']
     ordering = ['client_code']

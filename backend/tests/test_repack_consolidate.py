@@ -5,13 +5,15 @@ from clients.models import Client
 from warehouse.models import Warehouse, StorageLocation, LocationType
 from receiving.models import WarehouseReceipt, WRStatus, RepackOperation, OperationType, RepackLink
 from inventory.models import InventoryBalance, InventoryTransaction, TxnType
+from company.models import Company, CompanyMember
 
 User = get_user_model()
 
 @pytest.fixture
-def auth_client():
+def auth_client(setup_data):
     client = APIClient()
     user = User.objects.create_user(username='testuser', password='password')
+    CompanyMember.objects.create(company=setup_data["warehouse"].company, user=user, is_active=True)
     client.force_authenticate(user=user)
     return client
 
@@ -21,17 +23,18 @@ def api_client():
 
 @pytest.fixture
 def setup_data():
-    client = Client.objects.create(client_code="C1", name="Client 1")
-    warehouse = Warehouse.objects.create(code="W1", name="Warehouse 1")
-    loc1 = StorageLocation.objects.create(warehouse=warehouse, code="LOC-1")
+    company = Company.objects.create(name="Test Company")
+    client = Client.objects.create(company=company, client_code="C1", name="Client 1")
+    warehouse = Warehouse.objects.create(company=company, code="W1", name="Warehouse 1")
+    loc1 = StorageLocation.objects.create(company=company, warehouse=warehouse, code="LOC-1")
     
-    wr1 = WarehouseReceipt.objects.create(wr_number="WR-IN-1", client=client, received_warehouse=warehouse, status=WRStatus.ACTIVE)
-    wr2 = WarehouseReceipt.objects.create(wr_number="WR-IN-2", client=client, received_warehouse=warehouse, status=WRStatus.ACTIVE)
+    wr1 = WarehouseReceipt.objects.create(company=company, wr_number="WR-IN-1", client=client, received_warehouse=warehouse, status=WRStatus.ACTIVE)
+    wr2 = WarehouseReceipt.objects.create(company=company, wr_number="WR-IN-2", client=client, received_warehouse=warehouse, status=WRStatus.ACTIVE)
     
-    InventoryBalance.objects.create(client=client, warehouse=warehouse, location=loc1, wr=wr1, on_hand_qty=1)
-    InventoryBalance.objects.create(client=client, warehouse=warehouse, location=loc1, wr=wr2, on_hand_qty=1)
+    InventoryBalance.objects.create(company=company, client=client, warehouse=warehouse, location=loc1, wr=wr1, on_hand_qty=1)
+    InventoryBalance.objects.create(company=company, client=client, warehouse=warehouse, location=loc1, wr=wr2, on_hand_qty=1)
     
-    return {"client": client, "warehouse": warehouse, "loc1": loc1, "wr1": wr1, "wr2": wr2}
+    return {"company": company, "client": client, "warehouse": warehouse, "loc1": loc1, "wr1": wr1, "wr2": wr2}
 
 
 @pytest.mark.django_db
@@ -122,7 +125,7 @@ def test_reject_missing_balance(auth_client, setup_data):
 
 @pytest.mark.django_db
 def test_reject_different_client(auth_client, setup_data):
-    other_client = Client.objects.create(client_code="C2", name="Client 2")
+    other_client = Client.objects.create(company=setup_data["company"], client_code="C2", name="Client 2")
     
     url = '/api/v1/repack/consolidate/'
     payload = {
@@ -136,8 +139,8 @@ def test_reject_different_client(auth_client, setup_data):
 
 @pytest.mark.django_db
 def test_reject_different_warehouse(auth_client, setup_data):
-    other_warehouse = Warehouse.objects.create(code="W2", name="Warehouse 2")
-    other_location = StorageLocation.objects.create(warehouse=other_warehouse, code="LOC-OTHER")
+    other_warehouse = Warehouse.objects.create(company=setup_data["company"], code="W2", name="Warehouse 2")
+    other_location = StorageLocation.objects.create(company=setup_data["company"], warehouse=other_warehouse, code="LOC-OTHER")
 
     url = '/api/v1/repack/consolidate/'
     payload = {

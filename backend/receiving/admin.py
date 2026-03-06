@@ -1,5 +1,18 @@
 from django.contrib import admin
-from .models import WarehouseReceipt, RepackOperation, RepackLink
+from .models import WarehouseReceipt, WarehouseReceiptLine, RepackOperation, RepackLink
+
+
+class WarehouseReceiptLineInline(admin.TabularInline):
+    model = WarehouseReceiptLine
+    extra = 0
+    readonly_fields = ('created_at', 'updated_at')
+    fields = (
+        'date', 'carrier', 'package_type', 'tracking_number',
+        'description', 'declared_value',
+        'length', 'width', 'height', 'weight', 'pieces', 'volume_cf',
+        'repackable', 'bill_invoice', 'notes',
+    )
+
 
 @admin.register(WarehouseReceipt)
 class WarehouseReceiptAdmin(admin.ModelAdmin):
@@ -10,16 +23,28 @@ class WarehouseReceiptAdmin(admin.ModelAdmin):
         'status',
         'received_at',
         'received_warehouse',
+        'shipping_method',
     )
-    list_filter = ('status', 'received_warehouse', 'client')
+    list_filter = ('status', 'received_warehouse', 'client', 'shipping_method')
     search_fields = (
         'wr_number',
         'tracking_number',
         'client__name',
         'client__client_code',
+        'recipient_name',
     )
     ordering = ('-received_at',)
     readonly_fields = ('created_at', 'updated_at')
+    inlines = [WarehouseReceiptLineInline]
+
+
+@admin.register(WarehouseReceiptLine)
+class WarehouseReceiptLineAdmin(admin.ModelAdmin):
+    list_display = ('id', 'receipt', 'carrier', 'package_type', 'tracking_number', 'weight', 'pieces')
+    list_filter = ('carrier', 'package_type', 'repackable', 'bill_invoice')
+    search_fields = ('tracking_number', 'description', 'receipt__wr_number')
+    readonly_fields = ('created_at', 'updated_at')
+
 
 
 @admin.register(RepackOperation)

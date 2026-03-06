@@ -5,6 +5,7 @@ from clients.models import Client
 from warehouse.models import Warehouse, StorageLocation, LocationType
 from receiving.models import WarehouseReceipt, WRStatus
 from inventory.models import InventoryBalance, InventoryTransaction
+from company.models import Company, CompanyMember
 
 User = get_user_model()
 
@@ -13,19 +14,21 @@ def api_client():
     return APIClient()
 
 @pytest.fixture
-def auth_client():
+def auth_client(setup_data):
     client = APIClient()
     user = User.objects.create_user(username='testuser', password='password')
+    CompanyMember.objects.create(company=setup_data["warehouse"].company, user=user, is_active=True)
     client.force_authenticate(user=user)
     return client
 
 @pytest.fixture
 def setup_data():
-    client = Client.objects.create(client_code="C1", name="Client 1")
-    warehouse = Warehouse.objects.create(code="W1", name="Warehouse 1")
-    loc1 = StorageLocation.objects.create(warehouse=warehouse, code="LOC-1")
-    loc2 = StorageLocation.objects.create(warehouse=warehouse, code="LOC-2")
-    wr = WarehouseReceipt.objects.create(wr_number="WR-100", client=client, received_warehouse=warehouse, status=WRStatus.ACTIVE)
+    company = Company.objects.create(name="Test Company")
+    client = Client.objects.create(company=company, client_code="C1", name="Client 1")
+    warehouse = Warehouse.objects.create(company=company, code="W1", name="Warehouse 1")
+    loc1 = StorageLocation.objects.create(company=company, warehouse=warehouse, code="LOC-1")
+    loc2 = StorageLocation.objects.create(company=company, warehouse=warehouse, code="LOC-2")
+    wr = WarehouseReceipt.objects.create(company=company, wr_number="WR-100", client=client, received_warehouse=warehouse, status=WRStatus.ACTIVE)
     return {"client": client, "warehouse": warehouse, "loc1": loc1, "loc2": loc2, "wr": wr}
 
 @pytest.mark.django_db
@@ -50,6 +53,7 @@ def test_putaway_creates_balance(auth_client, setup_data):
 def test_move_updates_location(auth_client, setup_data):
     # Initial putaway
     InventoryBalance.objects.create(
+        company=setup_data["client"].company,
         client=setup_data["client"],
         warehouse=setup_data["warehouse"],
         location=setup_data["loc1"],
@@ -68,6 +72,7 @@ def test_move_updates_location(auth_client, setup_data):
 @pytest.mark.django_db
 def test_move_from_mismatch(auth_client, setup_data):
     InventoryBalance.objects.create(
+        company=setup_data["client"].company,
         client=setup_data["client"],
         warehouse=setup_data["warehouse"],
         location=setup_data["loc1"],
