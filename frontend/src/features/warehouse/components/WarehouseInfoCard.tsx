@@ -1,11 +1,13 @@
 import { WarehouseFormData } from "../types";
+import { AssociateCompany } from "../../company/associates.types";
 
 interface Props {
     data: WarehouseFormData;
+    agencies: AssociateCompany[];
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
 }
 
-export function WarehouseInfoCard({ data, onChange }: Props) {
+export function WarehouseInfoCard({ data, agencies, onChange }: Props) {
     return (
         <div style={{
             background: "white",
@@ -39,7 +41,9 @@ export function WarehouseInfoCard({ data, onChange }: Props) {
                         }}
                     >
                         <option value="">Select an agency...</option>
-                        {/* Options will be populated later */}
+                        {agencies.map(a => (
+                            <option key={a.id} value={a.id}>{a.name}</option>
+                        ))}
                     </select>
                 </div>
 
@@ -59,8 +63,8 @@ export function WarehouseInfoCard({ data, onChange }: Props) {
                     >
                         <option value="">Select...</option>
                         <option value="air">Air</option>
-                        <option value="boat">Sea</option>
-                        <option value="air">Ground</option>
+                        <option value="sea">Sea</option>
+                        <option value="ground">Ground</option>
                     </select>
                 </div>
 
@@ -86,7 +90,7 @@ export function WarehouseInfoCard({ data, onChange }: Props) {
                 </div>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                    <label style={{ fontSize: "13px", fontWeight: 600, color: "#555" }}>Location</label>
+                    <label style={{ fontSize: "13px", fontWeight: 600, color: "#555" }}>Location Note</label>
                     <input
                         type="text"
                         name="location"

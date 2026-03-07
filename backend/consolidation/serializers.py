@@ -4,6 +4,11 @@ from .models import Consolidation
 
 
 class ConsolidationSerializer(serializers.ModelSerializer):
+    warehouse_receipts = serializers.ListField(
+        child=serializers.IntegerField(), required=False, write_only=True
+    )
+    warehouse_receipt_ids = serializers.SerializerMethodField(read_only=True)
+
     # Read-only nested details for display
     associate_company_name = serializers.CharField(
         source='associate_company.name', read_only=True
@@ -38,10 +43,11 @@ class ConsolidationSerializer(serializers.ModelSerializer):
             'receiving_office_name',
             'alt_name',
             'note',
-            'status',
             'status_display',
             'created_at',
             'updated_at',
+            'warehouse_receipts',
+            'warehouse_receipt_ids',
         ]
         read_only_fields = ['id', 'reference_code', 'company', 'created_at', 'updated_at']
 
@@ -111,7 +117,81 @@ class ConsolidationSerializer(serializers.ModelSerializer):
                 "Sending office and receiving office cannot be the same."
             )
 
+        # Validate warehouse_receipts
+        warehouse_receipt_ids = data.get('warehouse_receipts')
+        if warehouse_receipt_ids is not None:
+            from receiving.models import WarehouseReceipt
+            receipts = WarehouseReceipt.objects.filter(
+                id__in=warehouse_receipt_ids,
+                company_id=company.id
+            )
+            found_ids = set(receipts.values_list('id', flat=True))
+            missing = set(warehouse_receipt_ids) - found_ids
+            if missing:
+                errors['warehouse_receipts'] = f"The following receipt IDs are invalid or not found in your company: {', '.join(map(str, missing))}"
+
+            # Optional: ensure no receipt is already linked to another OPEN/DRAFT consolidation
+            from consolidation.models import ConsolidationStatus, ConsolidationReceipt
+            # Find any receipt already linked to a different consolidation that is not CLOSED
+            existing_links = ConsolidationReceipt.objects.filter(
+                warehouse_receipt_id__in=warehouse_receipt_ids,
+                company_id=company.id
+            ).exclude(
+                consolidation__status=ConsolidationStatus.CLOSED
+            ).select_related('consolidation')
+
+            if self.instance:
+                existing_links = existing_links.exclude(consolidation_id=self.instance.id)
+
+            if existing_links.exists():
+                already_linked = [
+                    f"Receipt {link.warehouse_receipt_id} is linked to Consolidation {link.consolidation.reference_code}"
+                    for link in existing_links
+                ]
+                errors['warehouse_receipts'] = "Some receipts are already linked to an active consolidation: " + "; ".join(already_linked)
+
         if errors:
             raise serializers.ValidationError(errors)
 
         return data
+
+    def get_warehouse_receipt_ids(self, obj):
+        return list(obj.receipt_links.values_list('warehouse_receipt_id', flat=True))
+
+    def create(self, validated_data):
+        warehouse_receipt_ids = validated_data.pop('warehouse_receipts', None)
+        consolidation = super().create(validated_data)
+        
+        if warehouse_receipt_ids is not None:
+            from consolidation.models import ConsolidationReceipt
+            links = [
+                ConsolidationReceipt(
+                    company=consolidation.company,
+                    consolidation=consolidation,
+                    warehouse_receipt_id=wr_id
+                ) for wr_id in warehouse_receipt_ids
+            ]
+            ConsolidationReceipt.objects.bulk_create(links)
+            
+        return consolidation
+
+    def update(self, instance, validated_data):
+        warehouse_receipt_ids = validated_data.pop('warehouse_receipts', None)
+        consolidation = super().update(instance, validated_data)
+        
+        if warehouse_receipt_ids is not None:
+            from consolidation.models import ConsolidationReceipt
+            # Delete old links
+            instance.receipt_links.all().delete()
+            
+            # Create new links
+            links = [
+                ConsolidationReceipt(
+                    company=consolidation.company,
+                    consolidation=consolidation,
+                    warehouse_receipt_id=wr_id
+                ) for wr_id in warehouse_receipt_ids
+            ]
+            ConsolidationReceipt.objects.bulk_create(links)
+            
+        return consolidation

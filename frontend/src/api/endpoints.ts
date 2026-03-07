@@ -8,6 +8,12 @@
  */
 
 export const endpoints = {
+    // Auth
+    csrf: () => "/api/v1/csrf/",
+    login: () => "/api/v1/login/",
+    logout: () => "/api/v1/logout/",
+    signup: () => "/api/v1/signup/",
+
     // Auth / current user
     me: () => "/api/v1/me/",
 

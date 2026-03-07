@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
+from .views import login_view, logout_view, signup_view
 from clients.api import ClientViewSet
 from warehouse.api import WarehouseViewSet, StorageLocationViewSet
 from receiving.api import WarehouseReceiptViewSet
@@ -22,6 +23,9 @@ urlpatterns = [
     path('health/', views.health_check, name='health_check'),
     path('auth-check/', views.auth_check, name='auth_check'),
     path('csrf/', views.csrf, name='csrf'),
+    path('login/', login_view, name='login'),
+    path('logout/', logout_view, name='logout'),
+    path('signup/', signup_view, name='signup'),
     path('', include('company.urls')),
     path('inventory/', include('inventory.urls')),
     path('repack/', include('receiving.urls')),

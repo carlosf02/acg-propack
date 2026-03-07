@@ -115,3 +115,32 @@ class Consolidation(TimeStampedModel):
 
         if errors:
             raise ValidationError(errors)
+
+class ConsolidationReceipt(TimeStampedModel):
+    company = models.ForeignKey(
+        'company.Company',
+        on_delete=models.PROTECT,
+        related_name="consolidation_receipts"
+    )
+    consolidation = models.ForeignKey(
+        'Consolidation',
+        on_delete=models.CASCADE,
+        related_name="receipt_links"
+    )
+    warehouse_receipt = models.ForeignKey(
+        'receiving.WarehouseReceipt',
+        on_delete=models.PROTECT,
+        related_name="consolidation_links"
+    )
+
+    class Meta:
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['consolidation', 'warehouse_receipt'],
+                name='unique_consolidation_receipt'
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.consolidation.reference_code} -> {self.warehouse_receipt.wr_number or self.warehouse_receipt.id}"

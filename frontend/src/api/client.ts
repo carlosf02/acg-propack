@@ -8,7 +8,9 @@
  * - Throws a descriptive ApiError on non-2xx responses
  */
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+// Default to "" so relative paths use the Vite proxy (cookies stay same-origin).
+// Set VITE_API_BASE_URL explicitly when you need a different backend host.
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 
 // ---------------------------------------------------------------------------
 // Error type

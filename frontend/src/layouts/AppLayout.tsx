@@ -1,23 +1,31 @@
 import { useEffect, useState } from "react";
 import acgLogo from "../assets/acg-logo.png";
-import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { logout } from "../features/auth/auth.api";
+import { useAuth } from "../features/auth/AuthContext";
+import SetupBanner from "../components/SetupBanner";
 
-function TopMenuButton(props: { label: string }) {
+function TopMenuButton(props: { label: string; to?: string; active?: boolean }) {
+    const Component = props.to ? NavLink : "button";
+
     return (
-        <button
-            type="button"
-            style={{
+        <Component
+            to={props.to as any}
+            style={({ isActive }: any) => ({
                 border: "none",
-                background: "transparent",
+                background: isActive || props.active ? "rgba(255,255,255,0.15)" : "transparent",
                 color: "white",
-                padding: "8px 10px",
+                padding: "8px 12px",
                 cursor: "pointer",
                 fontSize: 14,
-                fontWeight: 500,
-            }}
+                fontWeight: isActive || props.active ? 700 : 500,
+                borderRadius: 4,
+                textDecoration: "none",
+                transition: "background 0.15s ease",
+            })}
         >
             {props.label}
-        </button>
+        </Component>
     );
 }
 
@@ -103,6 +111,19 @@ function SideNavDropdown(props: {
 }
 
 export default function AppLayout() {
+    const navigate = useNavigate();
+    const { user } = useAuth();
+    const isAdmin = user?.role === "admin";
+
+    async function handleLogout() {
+        try {
+            await logout();
+            navigate("/login", { replace: true });
+        } catch (err) {
+            console.error("Logout failed", err);
+        }
+    }
+
     return (
         <div style={{ minHeight: "100vh", background: "#f6f6f6" }}>
             <header
@@ -126,9 +147,9 @@ export default function AppLayout() {
                     </Link>
 
                     <div style={{ display: "flex", gap: 8 }}>
-                        <TopMenuButton label="Administration" />
-                        <TopMenuButton label="Settings" />
-                        <TopMenuButton label="Help" />
+                        {isAdmin && <TopMenuButton label="Administration" to="/admin" />}
+                        <TopMenuButton label="Settings" to="/settings" />
+                        <TopMenuButton label="Help" to="/help" />
                     </div>
                 </div>
 
@@ -137,12 +158,30 @@ export default function AppLayout() {
                         <path fill="currentColor" d="M12 2a5 5 0 1 1-5 5l.005-.217A5 5 0 0 1 12 2m2 12a5 5 0 0 1 5 5v1a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-1a5 5 0 0 1 5-5z" />
                     </svg>
                     <div style={{ marginLeft: -4 }}>
-                        <TopMenuButton label="User" />
+                        <TopMenuButton label="Profile" to="/profile" />
+                    </div>
+                    <div style={{ marginLeft: 8 }}>
+                        <button
+                            title="Sign out"
+                            aria-label="Sign out"
+                            onClick={handleLogout}
+                            style={{
+                                background: "rgba(255, 255, 255, 0.1)",
+                                border: "1px solid rgba(255, 255, 255, 0.2)",
+                                borderRadius: 6,
+                                padding: "6px 8px",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: "1.1rem"
+                            }}
+                        >
+                            🚪
+                        </button>
                     </div>
                     <div style={{ marginLeft: 16 }}>
-                        <Link to="/backend-connected" style={{ textDecoration: "none" }}>
-                            <TopMenuButton label="Backend Connected" />
-                        </Link>
+                        <TopMenuButton label="Backend Connected" to="/backend-connected" />
                     </div>
                 </div>
             </header>
@@ -197,8 +236,11 @@ export default function AppLayout() {
                     </nav>
                 </aside>
 
-                <main style={{ flex: 1, padding: 20 }}>
-                    <Outlet />
+                <main style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                    <SetupBanner />
+                    <div style={{ padding: 20, flex: 1 }}>
+                        <Outlet />
+                    </div>
                 </main>
             </div>
         </div>

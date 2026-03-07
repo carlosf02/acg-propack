@@ -1,21 +1,7 @@
 import { useState, useEffect } from 'react';
+import { listClients } from '../clients.api';
+import { Client } from '../types';
 import './ListLockerPage.css';
-
-// Type definition for Locker/Client
-type LockerType = {
-    id: string;
-    clientName: string;
-    createdAt: string;
-    email: string;
-    cellPhone: string;
-    homePhone: string;
-    city: string;
-    state: string;
-    country: string;
-};
-
-// Start with empty data until API integration
-const lockersData: LockerType[] = [];
 
 export default function ListLockerPage() {
     const [searchTerm, setSearchTerm] = useState('');
@@ -23,25 +9,56 @@ export default function ListLockerPage() {
     const [untilDate, setUntilDate] = useState('');
     const [filterOption, setFilterOption] = useState('All');
 
+    // Data states
+    const [lockersData, setLockersData] = useState<Client[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
     // Pagination states
     const [rowsPerPage, setRowsPerPage] = useState('10');
     const [currentPage, setCurrentPage] = useState(1);
+
+    // Fetch data on mount
+    useEffect(() => {
+        let isMounted = true;
+        setLoading(true);
+        setError('');
+
+        listClients()
+            .then(res => {
+                if (!isMounted) return;
+                // Support both Paginated<Client> and Client[]
+                const data = Array.isArray(res) ? res : res.results;
+                setLockersData(data);
+            })
+            .catch(err => {
+                if (!isMounted) return;
+                console.error("Failed to fetch clients:", err);
+                setError('Failed to load clients. Please try again later.');
+            })
+            .finally(() => {
+                if (isMounted) setLoading(false);
+            });
+
+        return () => { isMounted = false; };
+    }, []);
 
     // Reset current page to 1 whenever search terms or row limits change
     useEffect(() => {
         setCurrentPage(1);
     }, [searchTerm, fromDate, untilDate, filterOption, rowsPerPage]);
 
-    // Apply filters
+    // Apply filters locally (for this phase, we map fields to existing filter logic)
     const filteredLockers = lockersData.filter(locker => {
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
+            const fullName = `${locker.name || ''} ${locker.last_name || ''}`.trim().toLowerCase();
             return (
-                locker.clientName.toLowerCase().includes(term) ||
-                locker.email.toLowerCase().includes(term) ||
-                locker.id.toLowerCase().includes(term) ||
-                locker.cellPhone.includes(term) ||
-                (locker.homePhone && locker.homePhone.includes(term))
+                fullName.includes(term) ||
+                (locker.email || '').toLowerCase().includes(term) ||
+                (locker.client_code || '').toLowerCase().includes(term) ||
+                (locker.cellphone || '').includes(term) ||
+                (locker.home_phone || '').includes(term)
             );
         }
         return true;
@@ -62,7 +79,6 @@ export default function ListLockerPage() {
 
     const renderPageButtons = () => {
         const buttons = [];
-        // Show a max span or all if it's small, doing all simple buttons for now up to totalPages
         for (let i = 1; i <= totalPages; i++) {
             buttons.push(
                 <button
@@ -81,7 +97,7 @@ export default function ListLockerPage() {
         <div className="llp-container">
             {/* Header Section with Inline Stats */}
             <div className="llp-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2 style={{ margin: 0 }}>Lockers</h2>
+                <h2 style={{ margin: 0 }}>Lockers (Clients)</h2>
                 <div className="llp-stats-card">
                     <div className="llp-stat-item">
                         <span className="llp-stat-label">Total:</span>
@@ -103,7 +119,7 @@ export default function ListLockerPage() {
                     <input
                         type="search"
                         className="llp-input llp-search-input"
-                        placeholder="Number, Customer, Email, Phone..."
+                        placeholder="Name, Code, Email, Phone..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -145,46 +161,61 @@ export default function ListLockerPage() {
 
                 {/* Data Table */}
                 <div className="llp-table-responsive">
-                    <table className="llp-table">
-                        <thead>
-                            <tr>
-                                <th>Client</th>
-                                <th>Created At</th>
-                                <th>Email</th>
-                                <th>Phone</th>
-                                <th>City</th>
-                                <th>State / Region</th>
-                                <th>Country</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {paginatedLockers.length > 0 ? (
-                                paginatedLockers.map((locker, index) => (
-                                    <tr key={locker.id} className={index % 2 === 0 ? 'llp-row-even' : 'llp-row-odd'}>
-                                        <td>
-                                            <div className="llp-client-name">{locker.clientName}</div>
-                                            <div className="llp-client-id">{locker.id}</div>
-                                        </td>
-                                        <td>{locker.createdAt}</td>
-                                        <td>{locker.email}</td>
-                                        <td>
-                                            <div className="llp-phone-main">{locker.cellPhone || 'N/A'}</div>
-                                            {locker.homePhone && <div className="llp-phone-sub">Home: {locker.homePhone}</div>}
-                                        </td>
-                                        <td>{locker.city}</td>
-                                        <td>{locker.state}</td>
-                                        <td>{locker.country}</td>
-                                    </tr>
-                                ))
-                            ) : (
+                    {loading ? (
+                        <div style={{ padding: '32px', textAlign: 'center', color: '#6b7280' }}>Loading clients...</div>
+                    ) : error ? (
+                        <div style={{ padding: '32px', textAlign: 'center', color: '#dc2626' }}>{error}</div>
+                    ) : (
+                        <table className="llp-table">
+                            <thead>
                                 <tr>
-                                    <td colSpan={7} style={{ textAlign: 'center', padding: '32px', color: '#6b7280' }}>
-                                        No lockers found.
-                                    </td>
+                                    <th>Client</th>
+                                    <th>Created At</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>City</th>
+                                    <th>Postal Code</th>
                                 </tr>
-                            )}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {paginatedLockers.length > 0 ? (
+                                    paginatedLockers.map((locker, index) => {
+                                        const fullName = locker.client_type === 'company'
+                                            ? locker.name
+                                            : `${locker.name || ''} ${locker.last_name || ''}`.trim();
+
+                                        // Format date if present
+                                        const createdDate = locker.created_at
+                                            ? new Date(locker.created_at).toLocaleDateString()
+                                            : 'N/A';
+
+                                        return (
+                                            <tr key={locker.id} className={index % 2 === 0 ? 'llp-row-even' : 'llp-row-odd'}>
+                                                <td>
+                                                    <div className="llp-client-name">{fullName || 'Unnamed'}</div>
+                                                    <div className="llp-client-id">{locker.client_code || `ID: ${locker.id}`}</div>
+                                                </td>
+                                                <td>{createdDate}</td>
+                                                <td>{locker.email || '-'}</td>
+                                                <td>
+                                                    <div className="llp-phone-main">{locker.cellphone || locker.phone || 'N/A'}</div>
+                                                    {locker.home_phone && <div className="llp-phone-sub">Alt: {locker.home_phone}</div>}
+                                                </td>
+                                                <td>{locker.city || '-'}</td>
+                                                <td>{locker.postal_code || '-'}</td>
+                                            </tr>
+                                        );
+                                    })
+                                ) : (
+                                    <tr>
+                                        <td colSpan={6} style={{ textAlign: 'center', padding: '32px', color: '#6b7280' }}>
+                                            No clients yet.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    )}
                 </div>
 
                 {/* Pagination Footer */}
@@ -208,14 +239,14 @@ export default function ListLockerPage() {
                         <button
                             className="llp-page-btn llp-page-arrow"
                             onClick={() => handlePageChange(1)}
-                            disabled={currentPage === 1}
+                            disabled={currentPage === 1 || loading}
                         >
                             &laquo;
                         </button>
                         <button
                             className="llp-page-btn llp-page-arrow"
                             onClick={() => handlePageChange(currentPage - 1)}
-                            disabled={currentPage === 1}
+                            disabled={currentPage === 1 || loading}
                         >
                             &lsaquo;
                         </button>
@@ -225,14 +256,14 @@ export default function ListLockerPage() {
                         <button
                             className="llp-page-btn llp-page-arrow"
                             onClick={() => handlePageChange(currentPage + 1)}
-                            disabled={currentPage === totalPages}
+                            disabled={currentPage === totalPages || loading}
                         >
                             &rsaquo;
                         </button>
                         <button
                             className="llp-page-btn llp-page-arrow"
                             onClick={() => handlePageChange(totalPages)}
-                            disabled={currentPage === totalPages}
+                            disabled={currentPage === totalPages || loading}
                         >
                             &raquo;
                         </button>

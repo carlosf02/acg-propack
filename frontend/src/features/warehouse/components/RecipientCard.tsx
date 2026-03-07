@@ -1,6 +1,13 @@
 import { AddUserIcon } from "../../../components/icons/AddUserIcon";
 
-export function RecipientCard() {
+interface Props {
+    recipientName: string;
+    recipientAddress: string;
+    onChangeName: (name: string) => void;
+    onChangeAddress: (address: string) => void;
+}
+
+export function RecipientCard({ recipientName, recipientAddress, onChangeName, onChangeAddress }: Props) {
     return (
         <div style={{
             background: "white",
@@ -9,31 +16,8 @@ export function RecipientCard() {
             boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
             marginBottom: "16px"
         }}>
-            <h2 style={{ margin: "0 0 16px 0", fontSize: "18px", color: "#333" }}>Recipient</h2>
-            <div style={{ display: "flex", gap: "8px" }}>
-                <div style={{
-                    flex: 1,
-                    display: "flex",
-                    alignItems: "center",
-                    border: "1px solid #ddd",
-                    borderRadius: "6px",
-                    padding: "0 12px",
-                    background: "#f9f9f9"
-                }}>
-                    <input
-                        type="text"
-                        placeholder="Search"
-                        style={{
-                            border: "none",
-                            background: "transparent",
-                            width: "100%",
-                            padding: "10px 0",
-                            outline: "none",
-                            fontSize: "14px"
-                        }}
-                    />
-                    <span style={{ color: "#999", fontSize: "16px" }}></span>
-                </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                <h2 style={{ margin: 0, fontSize: "18px", color: "#333" }}>Recipient</h2>
                 <button
                     type="button"
                     style={{
@@ -41,19 +25,50 @@ export function RecipientCard() {
                         color: "white",
                         border: "none",
                         borderRadius: "6px",
-                        width: "42px",
-                        height: "42px",
+                        padding: "6px 12px",
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "center",
+                        gap: "6px",
                         cursor: "pointer",
+                        fontSize: "13px"
                     }}
-                    title="Add Recipient"
                 >
-                    <AddUserIcon size={24} />
+                    <AddUserIcon size={16} /> Add New
                 </button>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    <label style={{ fontSize: "13px", fontWeight: 600, color: "#555" }}>Name</label>
+                    <input
+                        type="text"
+                        value={recipientName}
+                        onChange={e => onChangeName(e.target.value)}
+                        placeholder="e.g. Jane Doe"
+                        style={{
+                            padding: "10px 12px",
+                            border: "1px solid #ddd",
+                            borderRadius: "6px",
+                            fontSize: "14px"
+                        }}
+                    />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    <label style={{ fontSize: "13px", fontWeight: 600, color: "#555" }}>Address</label>
+                    <input
+                        type="text"
+                        value={recipientAddress}
+                        onChange={e => onChangeAddress(e.target.value)}
+                        placeholder="123 Main St..."
+                        style={{
+                            padding: "10px 12px",
+                            border: "1px solid #ddd",
+                            borderRadius: "6px",
+                            fontSize: "14px"
+                        }}
+                    />
+                </div>
             </div>
         </div>
     );
 }
-

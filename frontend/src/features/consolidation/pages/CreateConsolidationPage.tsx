@@ -1,31 +1,20 @@
 import { useState, useEffect } from "react";
-import { ConsolidationFormData } from "../types";
+import { useNavigate } from "react-router-dom";
+import { ConsolidationFormData, ConsolidationCreate } from "../types";
+import { createConsolidation } from "../consolidation.api";
+import { listAssociateCompanies } from "../../company/associates.api";
+import { listOffices } from "../../company/offices.api";
+import { listWarehouseReceipts } from "../../receiving/receiving.api";
+import { AssociateCompany } from "../../company/associates.types";
+import { Office } from "../../company/offices.types";
+import { WarehouseReceipt } from "../../receiving/types";
+import { ApiError } from "../../../api/client";
 import "./CreateConsolidationPage.css";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
-type ShippingType = "All" | "Air" | "Sea" | "Ground";
+type ShippingType = "All" | "AIR" | "SEA" | "GROUND";
 type SearchField = "all" | "warehouseNumber" | "trackingNumber" | "sender" | "destination";
-
-type WarehouseRecord = {
-    id: string;
-    warehouseNumber: string;
-    trackingNumber: string;
-    sender: string;
-    destination: string;
-    shippingType: Exclude<ShippingType, "All">;
-    agency: string;
-    createdAt: string;
-    pieces: number;
-    weight: number;
-    volume: number;
-};
-
-// ─── Placeholder data (swap for API call when ready) ──────────────────────────
-
-const availableWarehouses: WarehouseRecord[] = [];
-
-const AGENCY_OPTIONS: string[] = [];
 
 const SEARCH_FIELD_LABELS: Record<SearchField, string> = {
     all: "All Fields",
@@ -36,14 +25,27 @@ const SEARCH_FIELD_LABELS: Record<SearchField, string> = {
 };
 
 const SHIPPING_BADGE_CLASS: Record<Exclude<ShippingType, "All">, string> = {
-    Air: "ccp-badge-air",
-    Sea: "ccp-badge-sea",
-    Ground: "ccp-badge-ground",
+    AIR: "ccp-badge-air",
+    SEA: "ccp-badge-sea",
+    GROUND: "ccp-badge-ground",
 };
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 
 export default function CreateConsolidationPage() {
+    const navigate = useNavigate();
+
+    // ── Data lists for dropdowns and table ─────────────────────────────────────
+    const [agencies, setAgencies] = useState<AssociateCompany[]>([]);
+    const [sendingOffices, setSendingOffices] = useState<Office[]>([]);
+    const [receivingOffices, setReceivingOffices] = useState<Office[]>([]);
+    const [availableWarehouses, setAvailableWarehouses] = useState<WarehouseReceipt[]>([]);
+    const [loadingData, setLoadingData] = useState(true);
+
+    // Form submission state
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState('');
+
     // ── Details form state ─────────────────────────────────────────────────────
     const [formData, setFormData] = useState<ConsolidationFormData>({
         agency: "",
@@ -60,17 +62,49 @@ export default function CreateConsolidationPage() {
     const [fromDate, setFromDate] = useState("");
     const [untilDate, setUntilDate] = useState("");
     const [shippingType, setShippingType] = useState<ShippingType>("All");
-    const [agency, setAgency] = useState("All");
+    const [filterAgency, setFilterAgency] = useState("All");
     const [rowsPerPage, setRowsPerPage] = useState("10");
     const [currentPage, setCurrentPage] = useState(1);
 
     // Set of selected warehouse IDs
-    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+    // Fetch dropdowns and available warehouse receipts on mount
+    useEffect(() => {
+        let isMounted = true;
+        setLoadingData(true);
+        setError('');
+
+        Promise.all([
+            listAssociateCompanies(),
+            listOffices(),
+            listOffices(),
+            listWarehouseReceipts()
+        ]).then(([agenciesRes, sendingRes, receivingRes, warehouseRes]) => {
+            if (!isMounted) return;
+            setAgencies(Array.isArray(agenciesRes) ? agenciesRes : agenciesRes.results);
+            setSendingOffices(Array.isArray(sendingRes) ? sendingRes : sendingRes.results);
+            setReceivingOffices(Array.isArray(receivingRes) ? receivingRes : receivingRes.results);
+
+            // Only show warehouses that are not yet consolidated (or filter as required by your business logic)
+            // For now, we list all and let the user select.
+            const whs = Array.isArray(warehouseRes) ? warehouseRes : warehouseRes.results;
+            setAvailableWarehouses(whs);
+        }).catch(err => {
+            if (!isMounted) return;
+            console.error("Failed to load create consolidation data:", err);
+            setError("Failed to load necessary form data. Please refresh.");
+        }).finally(() => {
+            if (isMounted) setLoadingData(false);
+        });
+
+        return () => { isMounted = false; };
+    }, []);
 
     // Reset to page 1 when filters change
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, searchField, fromDate, untilDate, shippingType, agency, rowsPerPage]);
+    }, [searchTerm, searchField, fromDate, untilDate, shippingType, filterAgency, rowsPerPage]);
 
     // ── Details handlers ───────────────────────────────────────────────────────
     const handleChange = (
@@ -79,14 +113,50 @@ export default function CreateConsolidationPage() {
         setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log("Consolidation data:", formData);
-        console.log("Selected warehouse IDs:", [...selectedIds]);
+        setSubmitting(true);
+        setError('');
+
+        if (selectedIds.size === 0) {
+            setError("You must select at least one warehouse receipt to consolidate.");
+            setSubmitting(false);
+            return;
+        }
+
+        if (!formData.agency || !formData.sendingOffice || !formData.receivingOffice || !formData.shippingMethod) {
+            setError("Agency, Shipping Method, Sending Office, and Receiving Office are required.");
+            setSubmitting(false);
+            return;
+        }
+
+        const payload: ConsolidationCreate = {
+            associate_company: Number(formData.agency),
+            sending_office: Number(formData.sendingOffice),
+            receiving_office: Number(formData.receivingOffice),
+            ship_type: formData.shippingMethod as "AIR" | "SEA" | "GROUND",
+            consolidation_type: formData.type || undefined,
+            note: formData.notes || undefined,
+            warehouse_receipts: Array.from(selectedIds),
+        };
+
+        try {
+            await createConsolidation(payload);
+            navigate('/consolidated');
+        } catch (err) {
+            console.error('Failed to create consolidation:', err);
+            if (err instanceof ApiError) {
+                setError(`API Error: ${err.message}`);
+            } else {
+                setError('An unexpected error occurred. Please try again.');
+            }
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     // ── Warehouse selection ────────────────────────────────────────────────────
-    const toggleWarehouse = (id: string) => {
+    const toggleWarehouse = (id: number) => {
         setSelectedIds((prev) => {
             const next = new Set(prev);
             if (next.has(id)) {
@@ -98,26 +168,33 @@ export default function CreateConsolidationPage() {
         });
     };
 
+    // Derived Agency Options for Warehouse Filter (all active agencies in current WR list)
+    const activeAgencyWhs = Array.from(new Set(availableWarehouses.map(wh => String(wh.associate_company || '')))).filter(Boolean);
+
     // ── Filtering ─────────────────────────────────────────────────────────────
     const filtered = availableWarehouses.filter((wh) => {
         if (searchTerm.trim()) {
             const term = searchTerm.trim().toLowerCase();
             if (searchField === "all") {
                 const ok =
-                    wh.warehouseNumber.toLowerCase().includes(term) ||
-                    wh.trackingNumber.toLowerCase().includes(term) ||
-                    wh.sender.toLowerCase().includes(term) ||
-                    wh.destination.toLowerCase().includes(term);
+                    (wh.wr_number || '').toLowerCase().includes(term) ||
+                    String(wh.client).includes(term);
                 if (!ok) return false;
             } else {
-                const val = wh[searchField]?.toString().toLowerCase() ?? "";
-                if (!val.includes(term)) return false;
+                let val = '';
+                if (searchField === 'warehouseNumber') val = wh.wr_number || '';
+                if (searchField === 'sender') val = String(wh.client) || '';
+                if (!val.toLowerCase().includes(term)) return false;
             }
         }
-        if (fromDate && wh.createdAt < fromDate) return false;
-        if (untilDate && wh.createdAt > untilDate) return false;
-        if (shippingType !== "All" && wh.shippingType !== shippingType) return false;
-        if (agency !== "All" && wh.agency !== agency) return false;
+
+        const whDate = wh.created_at ? new Date(wh.created_at).toISOString().split('T')[0] : '';
+        if (fromDate && whDate && whDate < fromDate) return false;
+        if (untilDate && whDate && whDate > untilDate) return false;
+
+        if (shippingType !== "All" && wh.shipping_method !== shippingType.toLowerCase()) return false;
+        if (filterAgency !== "All" && String(wh.associate_company) !== filterAgency) return false;
+
         return true;
     });
 
@@ -149,6 +226,10 @@ export default function CreateConsolidationPage() {
         return buttons;
     };
 
+    if (loadingData) {
+        return <div style={{ padding: '40px', textAlign: 'center' }}>Loading form data...</div>;
+    }
+
     // ─── Render ────────────────────────────────────────────────────────────────
     return (
         <div className="ccp-container">
@@ -158,15 +239,22 @@ export default function CreateConsolidationPage() {
                     <h2>Create Consolidation</h2>
                 </div>
                 <div className="ccp-header-actions">
-                    <button type="button" className="ccp-btn ccp-btn-secondary">
+                    {error && <span style={{ color: "#dc2626", fontWeight: 500 }}>{error}</span>}
+                    <button
+                        type="button"
+                        className="ccp-btn ccp-btn-secondary"
+                        onClick={() => navigate('/consolidated')}
+                        disabled={submitting}
+                    >
                         Cancel
                     </button>
                     <button
                         type="button"
                         className="ccp-btn ccp-btn-primary"
                         onClick={handleSubmit}
+                        disabled={submitting}
                     >
-                        Save Consolidation
+                        {submitting ? "Saving..." : "Save Consolidation"}
                     </button>
                 </div>
             </div>
@@ -192,6 +280,9 @@ export default function CreateConsolidationPage() {
                                 className="ccp-select"
                             >
                                 <option value="">Select an agency…</option>
+                                {agencies.map(a => (
+                                    <option key={a.id} value={a.id}>{a.name}</option>
+                                ))}
                             </select>
                         </div>
 
@@ -207,9 +298,9 @@ export default function CreateConsolidationPage() {
                                 className="ccp-select"
                             >
                                 <option value="">Select…</option>
-                                <option value="air">Air</option>
-                                <option value="sea">Sea</option>
-                                <option value="ground">Ground</option>
+                                <option value="AIR">Air</option>
+                                <option value="SEA">Sea</option>
+                                <option value="GROUND">Ground</option>
                             </select>
                         </div>
 
@@ -217,18 +308,15 @@ export default function CreateConsolidationPage() {
                             <label className="ccp-label" htmlFor="type">
                                 Type
                             </label>
-                            <select
+                            <input
                                 id="type"
                                 name="type"
+                                type="text"
+                                placeholder="e.g. Standard"
                                 value={formData.type}
                                 onChange={handleChange}
-                                className="ccp-select"
-                            >
-                                <option value="">Select…</option>
-                                <option value="standard">Standard</option>
-                                <option value="express">Express</option>
-                                <option value="refrigerated">Refrigerated</option>
-                            </select>
+                                className="ccp-input"
+                            />
                         </div>
                     </div>
 
@@ -246,6 +334,9 @@ export default function CreateConsolidationPage() {
                                 className="ccp-select"
                             >
                                 <option value="">Select sending office…</option>
+                                {sendingOffices.map(o => (
+                                    <option key={o.id} value={o.id}>{o.name}</option>
+                                ))}
                             </select>
                         </div>
 
@@ -261,6 +352,9 @@ export default function CreateConsolidationPage() {
                                 className="ccp-select"
                             >
                                 <option value="">Select receiving office…</option>
+                                {receivingOffices.map(o => (
+                                    <option key={o.id} value={o.id}>{o.name}</option>
+                                ))}
                             </select>
                         </div>
                     </div>
@@ -313,9 +407,7 @@ export default function CreateConsolidationPage() {
                             >
                                 <option value="all">All Fields</option>
                                 <option value="warehouseNumber">Warehouse #</option>
-                                <option value="trackingNumber">Tracking #</option>
-                                <option value="sender">Sender</option>
-                                <option value="destination">Destination</option>
+                                <option value="sender">Sender ID</option>
                             </select>
                         </div>
                     </div>
@@ -350,20 +442,20 @@ export default function CreateConsolidationPage() {
                                 onChange={(e) => setShippingType(e.target.value as ShippingType)}
                             >
                                 <option value="All">All Types</option>
-                                <option value="Air">Air</option>
-                                <option value="Sea">Sea</option>
-                                <option value="Ground">Ground</option>
+                                <option value="AIR">Air</option>
+                                <option value="SEA">Sea</option>
+                                <option value="GROUND">Ground</option>
                             </select>
                         </div>
                         <div className="ccp-filter-group">
-                            <label className="ccp-wh-label">Agency</label>
+                            <label className="ccp-wh-label">Agency ID</label>
                             <select
                                 className="ccp-select"
-                                value={agency}
-                                onChange={(e) => setAgency(e.target.value)}
+                                value={filterAgency}
+                                onChange={(e) => setFilterAgency(e.target.value)}
                             >
                                 <option value="All">All Agencies</option>
-                                {AGENCY_OPTIONS.map((opt) => (
+                                {activeAgencyWhs.map((opt) => (
                                     <option key={opt} value={opt}>
                                         {opt}
                                     </option>
@@ -378,15 +470,11 @@ export default function CreateConsolidationPage() {
                             <thead>
                                 <tr>
                                     <th>Warehouse #</th>
-                                    <th>Tracking #</th>
-                                    <th>Sender</th>
-                                    <th>Destination</th>
-                                    <th>Type</th>
-                                    <th>Agency</th>
+                                    <th>Method</th>
+                                    <th>Sender ID</th>
+                                    <th>Agency ID</th>
+                                    <th>Status</th>
                                     <th>Date</th>
-                                    <th>Pcs</th>
-                                    <th>Weight</th>
-                                    <th>Volume</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
@@ -394,6 +482,8 @@ export default function CreateConsolidationPage() {
                                 {paginated.length > 0 ? (
                                     paginated.map((wh, index) => {
                                         const isSelected = selectedIds.has(wh.id);
+                                        const createdDate = wh.created_at ? new Date(wh.created_at).toLocaleDateString() : 'N/A';
+
                                         return (
                                             <tr
                                                 key={wh.id}
@@ -406,23 +496,19 @@ export default function CreateConsolidationPage() {
                                                 }
                                             >
                                                 <td>
-                                                    <div className="ccp-wh-number">{wh.warehouseNumber}</div>
+                                                    <div className="ccp-wh-number">{wh.wr_number || `ID: ${wh.id}`}</div>
                                                 </td>
                                                 <td>
-                                                    <div className="ccp-wh-tracking">{wh.trackingNumber}</div>
-                                                </td>
-                                                <td>{wh.sender}</td>
-                                                <td>{wh.destination}</td>
-                                                <td>
-                                                    <span className={`ccp-badge ${SHIPPING_BADGE_CLASS[wh.shippingType]}`}>
-                                                        {wh.shippingType}
+                                                    <span className={`ccp-badge ${SHIPPING_BADGE_CLASS[wh.shipping_method as Exclude<ShippingType, "All">]}`}>
+                                                        {wh.shipping_method}
                                                     </span>
                                                 </td>
-                                                <td>{wh.agency}</td>
-                                                <td>{wh.createdAt}</td>
-                                                <td>{wh.pieces}</td>
-                                                <td>{wh.weight} lb</td>
-                                                <td>{wh.volume} in³</td>
+                                                <td>{wh.client}</td>
+                                                <td>{wh.associate_company}</td>
+                                                <td>
+                                                    <span className="ccp-badge">Pending</span>
+                                                </td>
+                                                <td>{createdDate}</td>
                                                 <td>
                                                     <button
                                                         type="button"
@@ -442,14 +528,14 @@ export default function CreateConsolidationPage() {
                                 ) : (
                                     <tr>
                                         <td
-                                            colSpan={11}
+                                            colSpan={7}
                                             style={{
                                                 textAlign: "center",
                                                 padding: "40px",
                                                 color: "#9ca3af",
                                             }}
                                         >
-                                            No unconsolidated warehouses found.
+                                            No unconsolidated warehouse receipts found.
                                         </td>
                                     </tr>
                                 )}

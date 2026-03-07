@@ -1,10 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect, FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { WarehouseFormData, PackageFormData } from "../types";
 import { SenderCard } from "../components/SenderCard";
 import { RecipientCard } from "../components/RecipientCard";
 import { WarehouseInfoCard } from "../components/WarehouseInfoCard";
 import { PackagesTable } from "../components/PackagesTable";
 import { TotalsSummary } from "../components/TotalsSummary";
+
+import { listClients } from "../../clients/clients.api";
+import { listAssociateCompanies } from "../../company/associates.api";
+import { createWarehouseReceipt } from "../../receiving/receiving.api";
+import { Client } from "../../clients/types";
+import { AssociateCompany } from "../../company/associates.types";
+import { WarehouseReceiptCreate, WarehouseReceiptLineCreate } from "../../receiving/types";
+import { ApiError } from "../../../api/client";
 
 const INITIAL_PACKAGE: PackageFormData = {
     date: new Date().toISOString().split('T')[0],
@@ -19,10 +28,28 @@ const INITIAL_PACKAGE: PackageFormData = {
     weight: "",
     pieces: "",
     volume: 0,
+    repackable: false,
+    billInvoice: false,
 };
 
 export default function CreateWarehousePage() {
-    // Top-Level State
+    const navigate = useNavigate();
+
+    // Data lists for dropdowns
+    const [clients, setClients] = useState<Client[]>([]);
+    const [agencies, setAgencies] = useState<AssociateCompany[]>([]);
+    const [loadingData, setLoadingData] = useState(true);
+
+    // Form submission state
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState('');
+
+    // Field States
+    const [selectedClientId, setSelectedClientId] = useState<number | "">("");
+    const [recipientName, setRecipientName] = useState("");
+    const [recipientAddress, setRecipientAddress] = useState("");
+    const [allowRepacking, setAllowRepacking] = useState(false);
+
     const [warehouseData, setWarehouseData] = useState<WarehouseFormData>({
         agency: "",
         shippingMethod: "",
@@ -35,7 +62,28 @@ export default function CreateWarehousePage() {
         { ...INITIAL_PACKAGE, id: Date.now().toString() }
     ]);
 
-    const [allowRepacking, setAllowRepacking] = useState(false);
+    // Fetch dropdowns on mount
+    useEffect(() => {
+        let isMounted = true;
+        setLoadingData(true);
+
+        Promise.all([
+            listClients(),
+            listAssociateCompanies()
+        ]).then(([clientsRes, agenciesRes]) => {
+            if (!isMounted) return;
+            setClients(Array.isArray(clientsRes) ? clientsRes : clientsRes.results);
+            setAgencies(Array.isArray(agenciesRes) ? agenciesRes : agenciesRes.results);
+        }).catch(err => {
+            if (!isMounted) return;
+            console.error("Failed to load dropdown data:", err);
+            setError("Failed to load necessary form data. Please refresh.");
+        }).finally(() => {
+            if (isMounted) setLoadingData(false);
+        });
+
+        return () => { isMounted = false; };
+    }, []);
 
     // Helpers to modify package array inline
     const handlePackageChange = (index: number, field: keyof PackageFormData, value: any) => {
@@ -43,7 +91,6 @@ export default function CreateWarehousePage() {
             const updated = [...prev];
             const pkg = { ...updated[index], [field]: value };
 
-            // Auto calculate volume when dimensions change
             if (field === 'length' || field === 'width' || field === 'height') {
                 const l = Number(pkg.length) || 0;
                 const w = Number(pkg.width) || 0;
@@ -56,7 +103,6 @@ export default function CreateWarehousePage() {
         });
     };
 
-    // Handlers
     const handleWarehouseChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         setWarehouseData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
@@ -73,16 +119,92 @@ export default function CreateWarehousePage() {
         setPackages(prev => prev.filter((_, i) => i !== index));
     };
 
+    const handleSubmit = async (e: FormEvent) => {
+        e.preventDefault();
+        setSubmitting(true);
+        setError('');
+
+        if (!selectedClientId) {
+            setError("Sender (Client) is required.");
+            setSubmitting(false);
+            return;
+        }
+
+        try {
+            // Map lines
+            const lines: WarehouseReceiptLineCreate[] = packages.map(pkg => ({
+                date: pkg.date || undefined,
+                carrier: pkg.carrier || undefined,
+                package_type: pkg.type || undefined,
+                tracking_number: pkg.tracking || undefined,
+                description: pkg.description || undefined,
+                declared_value: pkg.value ? String(pkg.value) : undefined,
+                length: pkg.length ? String(pkg.length) : undefined,
+                width: pkg.width ? String(pkg.width) : undefined,
+                height: pkg.height ? String(pkg.height) : undefined,
+                weight: pkg.weight ? String(pkg.weight) : undefined,
+                pieces: pkg.pieces ? Number(pkg.pieces) : 1, // Default 1
+                volume_cf: pkg.volume ? String(pkg.volume) : undefined,
+                repackable: pkg.repackable,
+                bill_invoice: pkg.billInvoice ? "true" : "false", // or map to string if your backend expects that
+                // No specific notes row in PackageFormData yet, so omitting
+            }));
+
+            // Map Header
+            const payload: WarehouseReceiptCreate = {
+                client: selectedClientId as number,
+                associate_company: warehouseData.agency ? Number(warehouseData.agency) : undefined,
+                shipping_method: warehouseData.shippingMethod ? (warehouseData.shippingMethod as "air" | "sea" | "ground") : undefined,
+                receipt_type: warehouseData.type || undefined,
+                location_note: warehouseData.location || undefined,
+                recipient_name: recipientName || undefined,
+                recipient_address: recipientAddress || undefined,
+                allow_repacking: allowRepacking,
+                notes: warehouseData.notes || undefined,
+                lines: lines.length > 0 ? lines : undefined,
+            };
+
+            await createWarehouseReceipt(payload);
+
+            // Navigate to home or receiving list page
+            navigate('/dashboard');
+
+        } catch (err) {
+            console.error('Failed to create warehouse receipt:', err);
+            if (err instanceof ApiError) {
+                setError(`API Error: ${err.message}`);
+            } else {
+                setError('An unexpected error occurred. Please try again.');
+            }
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    if (loadingData) {
+        return <div style={{ padding: '40px', textAlign: 'center' }}>Loading form data...</div>;
+    }
+
     return (
-        <div style={{ padding: "0 0 40px 0" }}>
+        <form onSubmit={handleSubmit} style={{ padding: "0 0 40px 0" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-                <h1 style={{ margin: 0, fontSize: "28px", color: "#1a1a1a" }}>Create Warehouse</h1>
-                <div style={{ display: "flex", gap: "12px" }}>
-                    <button style={{ padding: "10px 20px", background: "white", border: "1px solid #ddd", borderRadius: "6px", cursor: "pointer", fontWeight: 600, color: "#555" }}>
+                <h1 style={{ margin: 0, fontSize: "28px", color: "#1a1a1a" }}>Create Warehouse Receipt</h1>
+                <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                    {error && <span style={{ color: "#dc2626", fontWeight: 500 }}>{error}</span>}
+                    <button
+                        type="button"
+                        onClick={() => navigate('/dashboard')}
+                        style={{ padding: "10px 20px", background: "white", border: "1px solid #ddd", borderRadius: "6px", cursor: "pointer", fontWeight: 600, color: "#555" }}
+                        disabled={submitting}
+                    >
                         Cancel
                     </button>
-                    <button style={{ padding: "10px 24px", background: "#0052cc", border: "none", borderRadius: "6px", color: "white", cursor: "pointer", fontWeight: 600 }}>
-                        Save Warehouse
+                    <button
+                        type="submit"
+                        style={{ padding: "10px 24px", background: "#0052cc", border: "none", borderRadius: "6px", color: "white", cursor: "pointer", fontWeight: 600 }}
+                        disabled={submitting}
+                    >
+                        {submitting ? "Saving..." : "Save Receipt"}
                     </button>
                 </div>
             </div>
@@ -90,12 +212,25 @@ export default function CreateWarehousePage() {
             {/* Top Grid: Sender, Recipient, Warehouse Info */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))", gap: "20px", marginBottom: "24px", alignItems: "start" }}>
                 <div style={{ display: "flex", flexDirection: "column" }}>
-                    <SenderCard />
-                    <RecipientCard />
+                    <SenderCard
+                        clients={clients}
+                        selectedClientId={selectedClientId}
+                        onChange={setSelectedClientId}
+                    />
+                    <RecipientCard
+                        recipientName={recipientName}
+                        recipientAddress={recipientAddress}
+                        onChangeName={setRecipientName}
+                        onChangeAddress={setRecipientAddress}
+                    />
                 </div>
 
                 <div style={{ height: "100%" }}>
-                    <WarehouseInfoCard data={warehouseData} onChange={handleWarehouseChange} />
+                    <WarehouseInfoCard
+                        data={warehouseData}
+                        agencies={agencies}
+                        onChange={handleWarehouseChange}
+                    />
                 </div>
             </div>
 
@@ -104,9 +239,7 @@ export default function CreateWarehousePage() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #eee", paddingBottom: "12px", marginBottom: "20px" }}>
                     <h2 style={{ margin: 0, fontSize: "20px", color: "#333" }}>Packages</h2>
 
-                    {/* Scanner Buttons requested at top level */}
                     <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                        {/* Allow Repacking Toggle */}
                         <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", userSelect: "none", fontSize: "14px", fontWeight: 600, color: "#444" }}>
                             <div
                                 onClick={() => setAllowRepacking(prev => !prev)}
@@ -151,6 +284,6 @@ export default function CreateWarehousePage() {
 
                 <TotalsSummary packages={packages} />
             </div>
-        </div>
+        </form>
     );
 }

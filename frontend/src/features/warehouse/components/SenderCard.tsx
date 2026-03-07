@@ -1,6 +1,13 @@
+import { Client } from "../../clients/types";
 import { AddUserIcon } from "../../../components/icons/AddUserIcon";
 
-export function SenderCard() {
+interface Props {
+    clients: Client[];
+    selectedClientId: number | "";
+    onChange: (clientId: number) => void;
+}
+
+export function SenderCard({ clients, selectedClientId, onChange }: Props) {
     return (
         <div style={{
             background: "white",
@@ -10,50 +17,47 @@ export function SenderCard() {
             marginBottom: "16px"
         }}>
             <h2 style={{ margin: "0 0 16px 0", fontSize: "18px", color: "#333" }}>Sender</h2>
-            <div style={{ display: "flex", gap: "8px" }}>
-                <div style={{
-                    flex: 1,
-                    display: "flex",
-                    alignItems: "center",
-                    border: "1px solid #ddd",
-                    borderRadius: "6px",
-                    padding: "0 12px",
-                    background: "#f9f9f9"
-                }}>
-                    <input
-                        type="text"
-                        placeholder="Search"
-                        style={{
-                            border: "none",
-                            background: "transparent",
-                            width: "100%",
-                            padding: "10px 0",
-                            outline: "none",
-                            fontSize: "14px"
-                        }}
-                    />
-                    <span style={{ color: "#999", fontSize: "16px" }}></span>
-                </div>
-                <button
-                    type="button"
+            <div style={{ display: "flex", gap: "8px", flexDirection: "column" }}>
+                <select
+                    value={selectedClientId}
+                    onChange={(e) => onChange(Number(e.target.value))}
                     style={{
-                        background: "#4caf50",
-                        color: "white",
-                        border: "none",
+                        padding: "10px 12px",
+                        border: "1px solid #ddd",
                         borderRadius: "6px",
-                        width: "42px",
-                        height: "42px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "pointer",
+                        fontSize: "14px",
+                        background: "white",
+                        width: "100%"
                     }}
-                    title="Add Sender"
                 >
-                    <AddUserIcon size={24} />
-                </button>
+                    <option value="">Select a sender...</option>
+                    {clients.map(c => (
+                        <option key={c.id} value={c.id}>
+                            {c.client_code} - {c.client_type === 'company' ? c.name : `${c.name || ''} ${c.last_name || ''}`.trim()}
+                        </option>
+                    ))}
+                </select>
+                {/* Visual affordance retained from original design */}
+                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "4px" }}>
+                    <button
+                        type="button"
+                        style={{
+                            background: "#4caf50",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "6px",
+                            padding: "6px 12px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            cursor: "pointer",
+                            fontSize: "13px"
+                        }}
+                    >
+                        <AddUserIcon size={16} /> Add New
+                    </button>
+                </div>
             </div>
         </div>
     );
 }
-
