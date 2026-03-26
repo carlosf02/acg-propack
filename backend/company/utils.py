@@ -12,9 +12,17 @@ def get_active_company_member(user):
 def get_active_company(user):
     """
     Returns the Company for the first active CompanyMember, or raises PermissionDenied.
+    For superusers with no membership, falls back to the first available company.
     """
     member = get_active_company_member(user)
-    if not member or not member.company:
-        from rest_framework.exceptions import PermissionDenied
-        raise PermissionDenied("You must belong to an active company to perform this operation.")
-    return member.company
+    if member and member.company:
+        return member.company
+        
+    if user.is_authenticated and getattr(user, 'is_superuser', False):
+        from .models import Company
+        company = Company.objects.first()
+        if company:
+            return company
+
+    from rest_framework.exceptions import PermissionDenied
+    raise PermissionDenied("You must belong to an active company to perform this operation.")

@@ -16,6 +16,8 @@ class IsCompanyMember(BasePermission):
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
+        if request.user.is_superuser:
+            return True
         return _get_member(request) is not None
 
 
@@ -28,6 +30,8 @@ class IsCompanyAdmin(BasePermission):
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
+        if request.user.is_superuser:
+            return True
         member = _get_member(request)
         return member is not None and member.role == 'admin'
 
@@ -49,6 +53,9 @@ class CompanyObjectPermission(BasePermission):
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
+
+        if request.user.is_superuser:
+            return True
 
         member = _get_member(request)
         if member is None:

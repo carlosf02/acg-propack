@@ -26,9 +26,19 @@ class UserMeSerializer(serializers.ModelSerializer):
         member = get_active_company_member(obj)
         if member and member.company:
             return CompanySerializer(member.company).data
+        
+        # Fallback for superusers
+        if getattr(obj, 'is_superuser', False):
+            from .models import Company
+            company = Company.objects.first()
+            if company:
+                return CompanySerializer(company).data
         return None
 
     def get_role(self, obj):
+        if getattr(obj, 'is_superuser', False):
+            return 'admin'
+            
         from .utils import get_active_company_member
         member = get_active_company_member(obj)
         if member:
