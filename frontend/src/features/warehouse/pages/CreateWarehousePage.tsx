@@ -46,8 +46,7 @@ export default function CreateWarehousePage() {
 
     // Field States
     const [selectedClientId, setSelectedClientId] = useState<number | "">("");
-    const [recipientName, setRecipientName] = useState("");
-    const [recipientAddress, setRecipientAddress] = useState("");
+    const [selectedRecipientId, setSelectedRecipientId] = useState<number | "">("");
     const [allowRepacking, setAllowRepacking] = useState(false);
 
     const [warehouseData, setWarehouseData] = useState<WarehouseFormData>({
@@ -84,6 +83,11 @@ export default function CreateWarehousePage() {
 
         return () => { isMounted = false; };
     }, []);
+
+    // When a new client is created via the modal, prepend it to the list
+    const handleClientAdded = (newClient: Client) => {
+        setClients(prev => [newClient, ...prev]);
+    };
 
     // Helpers to modify package array inline
     const handlePackageChange = (index: number, field: keyof PackageFormData, value: any) => {
@@ -149,6 +153,19 @@ export default function CreateWarehousePage() {
                 bill_invoice: pkg.billInvoice ? "true" : "false", // or map to string if your backend expects that
                 // No specific notes row in PackageFormData yet, so omitting
             }));
+
+            // Resolve recipient from selected client
+            const recipientClient = selectedRecipientId
+                ? clients.find(c => c.id === selectedRecipientId)
+                : undefined;
+            const recipientName = recipientClient
+                ? (recipientClient.client_type === 'company'
+                    ? recipientClient.name
+                    : `${recipientClient.name || ''} ${recipientClient.last_name || ''}`.trim())
+                : undefined;
+            const recipientAddress = recipientClient
+                ? [recipientClient.address, recipientClient.city, recipientClient.postal_code].filter(Boolean).join(', ')
+                : undefined;
 
             // Map Header
             const payload: WarehouseReceiptCreate = {
@@ -216,12 +233,13 @@ export default function CreateWarehousePage() {
                         clients={clients}
                         selectedClientId={selectedClientId}
                         onChange={setSelectedClientId}
+                        onClientCreated={handleClientAdded}
                     />
                     <RecipientCard
-                        recipientName={recipientName}
-                        recipientAddress={recipientAddress}
-                        onChangeName={setRecipientName}
-                        onChangeAddress={setRecipientAddress}
+                        clients={clients}
+                        selectedClientId={selectedRecipientId}
+                        onChange={setSelectedRecipientId}
+                        onClientCreated={handleClientAdded}
                     />
                 </div>
 
