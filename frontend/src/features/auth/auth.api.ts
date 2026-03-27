@@ -19,6 +19,30 @@ export interface MeResponse {
         name: string;
     };
     role?: string;
+    auth_role?: string;
+    must_change_password?: boolean;
+    profile_completed?: boolean;
+    notifications_configured?: boolean;
+    client?: {
+        id: number;
+        client_code: string;
+        client_type?: string;
+        name: string;
+        last_name?: string | null;
+        email?: string | null;
+        cellphone?: string | null;
+        phone?: string | null;
+        home_phone?: string | null;
+        address?: string | null;
+        city?: string | null;
+        postal_code?: string | null;
+        company_name?: string | null;
+        alt_address_line1?: string | null;
+        alt_address_line2?: string | null;
+        alt_city?: string | null;
+        alt_state?: string | null;
+        alt_zip?: string | null;
+    } | null;
 }
 
 /** Set the Django csrftoken cookie so subsequent POST requests are accepted. */

@@ -1,0 +1,319 @@
+/* ── Client Packages Page ── mirrors admin lwp/lrp style with cpp- prefix ── */
+
+.cpp-container {
+    padding: 0;
+    max-width: 1400px;
+    margin: 0;
+    animation: cpp-fadeIn 0.4s ease-out;
+}
+
+@keyframes cpp-fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Header ── */
+
+.cpp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.cpp-header h2 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+}
+
+/* ── Stats badge ── */
+
+.cpp-stats-card {
+    display: flex;
+    align-items: center;
+    background: #ffffff;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    padding: 8px 16px;
+    gap: 16px;
+}
+
+.cpp-stat-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cpp-stat-divider {
+    height: 24px;
+    width: 1px;
+    background-color: #e5e7eb;
+}
+
+.cpp-stat-label {
+    font-size: 13px;
+    color: #6b7280;
+    text-transform: uppercase;
+    font-weight: 500;
+}
+
+.cpp-stat-value {
+    font-size: 15px;
+    font-weight: 700;
+    color: #111827;
+}
+
+/* ── Card ── */
+
+.cpp-card {
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05), 0 1px 3px rgba(0,0,0,0.02);
+    padding: 24px;
+    border: 1px solid #f3f4f6;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* ── Labels / Inputs / Selects ── */
+
+.cpp-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+    display: block;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.cpp-input,
+.cpp-select {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #111827;
+    background-color: #f9fafb;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+    font-family: inherit;
+}
+
+.cpp-input:focus,
+.cpp-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 4px rgba(59,130,246,0.1);
+}
+
+/* ── Search row ── */
+
+.cpp-search-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+}
+
+.cpp-search-field {
+    flex: 1;
+    min-width: 0;
+}
+
+.cpp-search-by-field {
+    flex: 0 0 180px;
+}
+
+/* ── Filters row ── */
+
+.cpp-filters-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+.cpp-filter-group {
+    flex: 1;
+    min-width: 160px;
+}
+
+/* ── Section divider ── */
+
+.cpp-section-divider {
+    height: 1px;
+    background: #f3f4f6;
+    border: none;
+    margin: 0;
+}
+
+/* ── Table ── */
+
+.cpp-table-responsive {
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+}
+
+.cpp-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.cpp-table th {
+    background-color: #f9fafb;
+    color: #6b7280;
+    font-size: 12px;
+    text-transform: uppercase;
+    font-weight: 600;
+    padding: 14px 20px;
+    border-bottom: 1px solid #e5e7eb;
+    letter-spacing: 0.5px;
+}
+
+.cpp-table td {
+    padding: 14px 20px;
+    font-size: 14px;
+    color: #374151;
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: middle;
+}
+
+.cpp-row-even { background-color: #ffffff; }
+.cpp-row-odd  { background-color: #f9fafb; }
+
+.cpp-table tr:hover {
+    background-color: #f0f7ff;
+    cursor: default;
+}
+
+/* ── Reference number ── */
+
+.cpp-ref-number {
+    font-weight: 700;
+    color: #2563eb;
+    font-size: 14px;
+}
+
+.cpp-tracking {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 2px;
+}
+
+/* ── Kind badge ── */
+
+.cpp-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.cpp-badge-wr     { background: #eff6ff; color: #1d4ed8; }
+.cpp-badge-repack { background: #ede9fe; color: #5b21b6; }
+
+/* ── Status badge ── */
+
+.cpp-status {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.cpp-status-active      { background: #dbeafe; color: #1e40af; }
+.cpp-status-shipped     { background: #d1fae5; color: #065f46; }
+.cpp-status-inactive    { background: #f3f4f6; color: #374151; }
+.cpp-status-cancelled   { background: #fee2e2; color: #991b1b; }
+.cpp-status-consolidate { background: #fef3c7; color: #92400e; }
+.cpp-status-repack      { background: #ede9fe; color: #5b21b6; }
+.cpp-status-default     { background: #f3f4f6; color: #374151; }
+
+/* ── Shipping method badge ── */
+
+.cpp-shipping-air    { background: #eff6ff; color: #1d4ed8; }
+.cpp-shipping-sea    { background: #ecfdf5; color: #065f46; }
+.cpp-shipping-ground { background: #fef3c7; color: #92400e; }
+
+/* ── Pagination ── */
+
+.cpp-pagination-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.cpp-rows-selector {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.cpp-select-inline {
+    width: auto;
+    padding: 6px 28px 6px 10px;
+}
+
+.cpp-pagination-controls {
+    display: flex;
+    gap: 4px;
+}
+
+.cpp-page-btn {
+    border: 1px solid #e5e7eb;
+    background-color: #ffffff;
+    color: #374151;
+    min-width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.cpp-page-btn:hover:not(:disabled) {
+    background-color: #f3f4f6;
+    border-color: #d1d5db;
+}
+
+.cpp-page-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.cpp-page-active {
+    background-color: #3b82f6;
+    color: #ffffff;
+    border-color: #3b82f6;
+}
+
+.cpp-page-active:hover {
+    background-color: #2563eb !important;
+    border-color: #2563eb !important;
+}
+
+.cpp-page-arrow {
+    color: #9ca3af;
+}

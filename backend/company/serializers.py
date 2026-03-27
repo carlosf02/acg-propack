@@ -16,10 +16,15 @@ class CompanySerializer(serializers.ModelSerializer):
 class UserMeSerializer(serializers.ModelSerializer):
     company = serializers.SerializerMethodField()
     role = serializers.SerializerMethodField()
+    auth_role = serializers.SerializerMethodField()
+    client = serializers.SerializerMethodField()
+    must_change_password = serializers.SerializerMethodField()
+    profile_completed = serializers.SerializerMethodField()
+    notifications_configured = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'company', 'role']
+        fields = ['id', 'username', 'email', 'company', 'role', 'auth_role', 'client', 'must_change_password', 'profile_completed', 'notifications_configured']
 
     def get_company(self, obj):
         from .utils import get_active_company_member
@@ -44,6 +49,68 @@ class UserMeSerializer(serializers.ModelSerializer):
         if member:
             return member.role
         return None
+
+    def get_auth_role(self, obj):
+        from .utils import get_active_company_member
+        member = get_active_company_member(obj)
+        if member:
+            return member.role.upper()
+        
+        try:
+            profile = obj.profile
+            if profile and profile.role == "CLIENT":
+                return "CLIENT"
+        except Exception:
+            pass
+            
+        return "UNKNOWN"
+
+    def get_client(self, obj):
+        try:
+            profile = obj.profile
+            if profile and profile.role == "CLIENT" and profile.client:
+                c = profile.client
+                return {
+                    "id": c.pk,
+                    "client_code": c.client_code,
+                    "client_type": c.client_type,
+                    "name": c.name,
+                    "last_name": c.last_name,
+                    "email": c.email,
+                    "cellphone": c.cellphone,
+                    "phone": c.phone,
+                    "home_phone": c.home_phone,
+                    "address": c.address,
+                    "city": c.city,
+                    "postal_code": c.postal_code,
+                    "company_name": c.company.name if c.company_id else None,
+                    "alt_address_line1": c.default_address_line1,
+                    "alt_address_line2": c.default_address_line2,
+                    "alt_city": c.default_city,
+                    "alt_state": c.default_state,
+                    "alt_zip": c.default_zip,
+                }
+        except Exception:
+            pass
+        return None
+
+    def get_must_change_password(self, obj):
+        try:
+            return bool(obj.profile.must_change_password)
+        except Exception:
+            return False
+
+    def get_profile_completed(self, obj):
+        try:
+            return bool(obj.profile.profile_completed)
+        except Exception:
+            return False
+
+    def get_notifications_configured(self, obj):
+        try:
+            return bool(obj.profile.notifications_configured)
+        except Exception:
+            return False
 
 
 class AssociateCompanySerializer(serializers.ModelSerializer):
