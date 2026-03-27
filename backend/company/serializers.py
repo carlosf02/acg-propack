@@ -16,10 +16,12 @@ class CompanySerializer(serializers.ModelSerializer):
 class UserMeSerializer(serializers.ModelSerializer):
     company = serializers.SerializerMethodField()
     role = serializers.SerializerMethodField()
+    auth_role = serializers.SerializerMethodField()
+    client = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'company', 'role']
+        fields = ['id', 'username', 'email', 'company', 'role', 'auth_role', 'client']
 
     def get_company(self, obj):
         from .utils import get_active_company_member
@@ -33,6 +35,34 @@ class UserMeSerializer(serializers.ModelSerializer):
         member = get_active_company_member(obj)
         if member:
             return member.role
+        return None
+
+    def get_auth_role(self, obj):
+        from .utils import get_active_company_member
+        member = get_active_company_member(obj)
+        if member:
+            return member.role.upper()
+        
+        try:
+            profile = obj.profile
+            if profile and profile.role == "CLIENT":
+                return "CLIENT"
+        except Exception:
+            pass
+            
+        return "UNKNOWN"
+
+    def get_client(self, obj):
+        try:
+            profile = obj.profile
+            if profile and profile.role == "CLIENT" and profile.client:
+                return {
+                    "id": profile.client.pk,
+                    "client_code": profile.client.client_code,
+                    "name": profile.client.name,
+                }
+        except Exception:
+            pass
         return None
 
 

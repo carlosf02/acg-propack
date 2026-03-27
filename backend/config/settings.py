@@ -169,3 +169,10 @@ REST_FRAMEWORK = {
     ],
 }
 
+# ─── Email ──────────────────────────────────────────────────────────────────
+# Dev: prints outgoing emails to the console.
+# Production: swap to "django.core.mail.backends.smtp.EmailBackend" and add
+# EMAIL_HOST, EMAIL_PORT, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, EMAIL_USE_TLS.
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+DEFAULT_FROM_EMAIL = "noreply@acgpropack.com"
+

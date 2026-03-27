@@ -42,3 +42,9 @@ class ClientViewSet(CompanyScopedViewSetMixin, viewsets.ModelViewSet):
     search_fields = ['client_code', 'name', 'last_name', 'email', 'cellphone']
     ordering_fields = ['client_code', 'name', 'created_at']
     ordering = ['client_code']
+
+    def perform_create(self, serializer):
+        company = self.get_company()
+        client = serializer.save(company=company)
+        from clients.utils import provision_client_user
+        provision_client_user(client)
