@@ -29,5 +29,6 @@ urlpatterns = [
     path('', include('company.urls')),
     path('inventory/', include('inventory.urls')),
     path('repack/', include('receiving.urls')),
+    path('billing/', include('billing.urls')),
     path('', include(router.urls)),
 ]

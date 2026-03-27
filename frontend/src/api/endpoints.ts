@@ -30,6 +30,23 @@ export const endpoints = {
     consolidations: () => "/api/v1/consolidations/",
     companyMembers: () => "/api/v1/company/members/",
     companies: () => "/api/v1/companies/",
+
+    // Billing
+    billingSummary: () => "/api/v1/billing/summary/",
+    billingPortal: () => "/api/v1/billing/portal/",
+    billingInvoices: () => "/api/v1/billing/invoices/",
+    billingSync: () => "/api/v1/billing/sync-checkout/",
+    billingSubscriptionIntent: () => "/api/v1/billing/subscription-intent/",
+    billingSubscribeSavedCard: () => "/api/v1/billing/subscribe-saved-card/",
+    paymentMethods: () => "/api/v1/billing/payment-methods/",
+    paymentMethodSetupIntent: () => "/api/v1/billing/payment-methods/setup-intent/",
+    paymentMethodDetail: (id: string) => `/api/v1/billing/payment-methods/${id}/`,
+    paymentMethodSetDefault: (id: string) => `/api/v1/billing/payment-methods/${id}/set-default/`,
+    billingCancelSubscription: () => "/api/v1/billing/subscription/cancel/",
+    billingSubscriptionQueueSwitch: () => "/api/v1/billing/subscription/queue-switch/",
+    billingSubscriptionCancelSwitch: () => "/api/v1/billing/subscription/cancel-switch/",
+    createOnboardingSession: () => "/api/v1/billing/onboarding-session/",
+    finalizeOnboarding: (id: string) => `/api/v1/billing/onboarding-session/${id}/finalize/`,
 } as const;
 
 export type EndpointKey = keyof typeof endpoints;

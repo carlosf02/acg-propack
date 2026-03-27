@@ -43,6 +43,7 @@ class ConsolidationSerializer(serializers.ModelSerializer):
             'receiving_office_name',
             'alt_name',
             'note',
+            'status',
             'status_display',
             'created_at',
             'updated_at',

@@ -13,16 +13,27 @@ import CreateRepackingPage from "./features/warehouse/pages/CreateRepackingPage"
 import ListRepackingPage from "./features/warehouse/pages/ListRepackingPage";
 import LoginPage from "./features/auth/pages/LoginPage";
 import SignupPage from "./features/auth/pages/SignupPage";
+import CheckoutPage from "./features/auth/pages/CheckoutPage";
 import ForgotPasswordPage from "./features/auth/pages/ForgotPasswordPage";
 import { me } from "./features/auth/auth.api";
 import { AuthProvider, useAuth } from "./features/auth/AuthContext";
 import { ApiError } from "./api/client";
 
-// Phase 7 Routes
+// Global Nav Routes
 import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
 import AdminPage from "./pages/AdminPage";
 import HelpPage from "./pages/HelpPage";
+import BillingPage from "./pages/BillingPage";
+import PaymentMethodsPage from "./pages/PaymentMethodsPage";
+import PaymentsPage from "./pages/PaymentsPage";
+import PaymentDetailPage from "./pages/PaymentDetailPage";
+
+// NEW: Public Pages & Layout
+import PublicLayout from "./components/public/PublicLayout";
+import LandingPage from "./pages/LandingPage";
+import PlansPage from "./pages/PlansPage";
+import SupportPage from "./pages/SupportPage";
 
 // ---------------------------------------------------------------------------
 // AuthGate — calls /api/v1/me/ on mount; redirects to /login if not authed.
@@ -44,11 +55,17 @@ function AuthGate({ children }: { children: ReactNode }) {
       .catch((err) => {
         if (err instanceof ApiError && err.status === 401) {
           setState("unauthed");
-          navigate("/login", { replace: true });
+          // If we're on a protected route, redirect to login
+          const protectedPaths = ["/dashboard", "/finance", "/clients", "/warehouses", "/repacking", "/consolidated", "/profile", "/settings", "/admin"];
+          if (protectedPaths.some(p => window.location.pathname.startsWith(p))) {
+            navigate("/login", { replace: true });
+          }
         } else {
-          // Unexpected error — still block the app but don't redirect
           setState("unauthed");
-          navigate("/login", { replace: true });
+          const protectedPaths = ["/dashboard", "/finance", "/clients", "/warehouses", "/repacking", "/consolidated", "/profile", "/settings", "/admin"];
+          if (protectedPaths.some(p => window.location.pathname.startsWith(p))) {
+            navigate("/login", { replace: true });
+          }
         }
       });
     // Only run once on mount
@@ -73,10 +90,7 @@ function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
-  if (state === "unauthed") {
-    return null;
-  }
-
+  // Allow children if authed, or if not authed but on a public route (handled by higher level routes anyway)
   return <>{children}</>;
 }
 
@@ -95,9 +109,17 @@ function PlaceholderPage(props: { title: string }) {
 export default function App() {
   return (
     <Routes>
-      {/* Public auth routes — no gate */}
+      {/* Public Marketing Routes */}
+      <Route element={<PublicLayout />}>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/plans" element={<PlansPage />} />
+        <Route path="/support" element={<SupportPage />} />
+      </Route>
+
+      {/* Auth Routes (Standalone) */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      <Route path="/get-started" element={<CheckoutPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
       {/* Protected app routes */}
@@ -110,7 +132,7 @@ export default function App() {
           </AuthProvider>
         }
       >
-        <Route path="/" element={<DashboardHome />} />
+        <Route path="/dashboard" element={<DashboardHome />} />
 
         {/* Clients / Lockers */}
         <Route path="/clients" element={<ListLockerPage />} />
@@ -134,8 +156,14 @@ export default function App() {
         <Route path="/consolidated" element={<ListConsolidationPage />} />
         <Route path="/consolidated/new" element={<CreateConsolidationPage />} />
 
-        <Route path="/payments" element={<PlaceholderPage title="Payments" />} />
-        <Route path="/billing" element={<PlaceholderPage title="Billing" />} />
+        <Route path="/finance/payments" element={<PaymentsPage />} />
+        <Route path="/finance/payments/:id" element={<PaymentDetailPage />} />
+        <Route path="/finance/billing" element={<BillingPage />} />
+        <Route path="/finance/payment-methods" element={<PaymentMethodsPage />} />
+
+        {/* Legacy redirects */}
+        <Route path="/payments" element={<Navigate to="/finance/payments" replace />} />
+        <Route path="/billing" element={<Navigate to="/finance/billing" replace />} />
         <Route path="/search" element={<PlaceholderPage title="Search" />} />
 
         {/* Global Nav Routes */}
@@ -145,7 +173,7 @@ export default function App() {
         <Route path="/help" element={<HelpPage />} />
 
         {/* Catch-all within authenticated zone */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>
     </Routes>
   );

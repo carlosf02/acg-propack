@@ -11,6 +11,11 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+import dotenv
+
+# Load environment variables from .env file
+dotenv.load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -52,6 +57,7 @@ INSTALLED_APPS = [
     "shipping",
     "company",
     "consolidation",
+    "billing",
 ]
 
 MIDDLEWARE = [
@@ -168,11 +174,4 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.SessionAuthentication",
     ],
 }
-
-# ─── Email ──────────────────────────────────────────────────────────────────
-# Dev: prints outgoing emails to the console.
-# Production: swap to "django.core.mail.backends.smtp.EmailBackend" and add
-# EMAIL_HOST, EMAIL_PORT, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, EMAIL_USE_TLS.
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-DEFAULT_FROM_EMAIL = "noreply@acgpropack.com"
 

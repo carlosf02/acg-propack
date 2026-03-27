@@ -2,7 +2,8 @@ import { useState, FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { login } from "../auth.api";
 import { ApiError } from "../../../api/client";
-import "../auth.css";
+import logo from "../../../assets/acg-logo.png";
+import "../auth.css"; // Keep base styles but I'll override some for premium feel
 
 export default function LoginPage() {
     const navigate = useNavigate();
@@ -18,7 +19,7 @@ export default function LoginPage() {
         setLoading(true);
         try {
             await login(identifier.trim(), password);
-            navigate("/", { replace: true });
+            navigate("/dashboard", { replace: true }); // Redirect to dashboard after login
         } catch (err) {
             if (err instanceof ApiError) {
                 setError(err.message || "Invalid credentials.");
@@ -31,25 +32,38 @@ export default function LoginPage() {
     }
 
     return (
-        <div className="auth-page">
-            <div className="auth-card">
+        <div className="auth-page public-layout-wrapper" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9fafb' }}>
+            <div className="auth-card" style={{
+                background: 'white',
+                padding: '3rem',
+                borderRadius: '12px',
+                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                width: '100%',
+                maxWidth: '440px'
+            }}>
                 {/* Brand */}
-                <div className="auth-brand">
-                    <div className="auth-brand-icon">P</div>
-                    <span className="auth-brand-name">ACG ProPack</span>
+                <div className="auth-brand" style={{ justifyContent: 'center', marginBottom: '2.5rem' }}>
+                    <Link to="/" style={{ display: 'block' }}>
+                        <img src={logo} alt="ACG ProPack" style={{ height: '150px', width: 'auto', display: 'block' }} />
+                    </Link>
                 </div>
 
-                <h1 className="auth-title">Sign in</h1>
-                <p className="auth-subtitle">Welcome back — enter your credentials below.</p>
+                <h1 className="auth-title" style={{ fontSize: '1.5rem', fontWeight: 700, textAlign: 'center', marginBottom: '0.5rem', color: '#111827' }}>
+                    Sign in to ProPack
+                </h1>
+                <p className="auth-subtitle" style={{ textAlign: 'center', color: '#6b7280', marginBottom: '2.5rem', fontSize: '0.875rem' }}>
+                    Enter your credentials to access your warehouse software.
+                </p>
 
-                <form className="auth-form" onSubmit={handleSubmit} noValidate>
+                <form className="auth-form" onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                     <div className="auth-field">
-                        <label className="auth-label" htmlFor="login-identifier">
+                        <label className="auth-label" htmlFor="login-identifier" style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.5rem', color: '#374151' }}>
                             Email or Username
                         </label>
                         <input
                             id="login-identifier"
                             className="auth-input"
+                            style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '0.9375rem' }}
                             type="text"
                             placeholder="you@example.com"
                             autoComplete="username"
@@ -61,13 +75,19 @@ export default function LoginPage() {
                     </div>
 
                     <div className="auth-field">
-                        <label className="auth-label" htmlFor="login-password">
-                            Password
-                        </label>
-                        <div className="auth-input-wrapper">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                            <label className="auth-label" htmlFor="login-password" style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#374151' }}>
+                                Password
+                            </label>
+                            <Link className="auth-link" to="/forgot-password" style={{ fontSize: '0.8125rem', color: '#4f46e5', textDecoration: 'none' }}>
+                                Forgot?
+                            </Link>
+                        </div>
+                        <div className="auth-input-wrapper" style={{ position: 'relative' }}>
                             <input
                                 id="login-password"
                                 className="auth-input"
+                                style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '0.9375rem' }}
                                 type={showPassword ? "text" : "password"}
                                 placeholder="••••••••"
                                 autoComplete="current-password"
@@ -79,55 +99,29 @@ export default function LoginPage() {
                             <button
                                 type="button"
                                 className="auth-password-toggle"
+                                style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer' }}
                                 onClick={() => setShowPassword(!showPassword)}
                                 aria-label={showPassword ? "Hide password" : "Show password"}
                                 disabled={loading}
                             >
-                                {showPassword ? (
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49" />
-                                        <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" />
-                                        <path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143" />
-                                        <path d="m2 2 20 20" />
-                                    </svg>
-                                ) : (
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
-                                        <circle cx="12" cy="12" r="3" />
-                                    </svg>
-                                )}
+                                {showPassword ? "Hide" : "Show"}
                             </button>
                         </div>
                     </div>
 
-                    {error && <div className="auth-error" role="alert">{error}</div>}
+                    {error && <div className="auth-error" role="alert" style={{ color: '#dc2626', fontSize: '0.8125rem', textAlign: 'center' }}>{error}</div>}
 
                     <button
                         id="login-submit"
-                        className="auth-btn"
+                        className="btn btn-primary"
                         type="submit"
+                        style={{ width: '100%', padding: '0.875rem', fontSize: '0.9375rem', justifyContent: 'center', marginTop: '1rem' }}
                         disabled={loading || !identifier || !password}
                     >
-                        {loading && <span className="auth-spinner" aria-hidden="true" />}
                         {loading ? "Signing in…" : "Sign in"}
                     </button>
                 </form>
 
-                <div className="auth-divider" />
-
-                <div className="auth-footer">
-                    <div className="auth-footer-row">
-                        <Link className="auth-link" to="/forgot-password">
-                            Forgot password?
-                        </Link>
-                    </div>
-                    <div className="auth-footer-row">
-                        <span>Don't have an account?</span>
-                        <Link className="auth-link" to="/signup">
-                            Create an account
-                        </Link>
-                    </div>
-                </div>
             </div>
         </div>
     );

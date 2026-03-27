@@ -2,21 +2,27 @@ import { useState, FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { signup, createCompany } from "../auth.api";
 import { ApiError } from "../../../api/client";
+import logo from "../../../assets/acg-logo.png";
 import "../auth.css";
+
+type SignupStep = "choice" | "form" | "message";
+type SignupType = "company" | "join" | "partner";
 
 export default function SignupPage() {
     const navigate = useNavigate();
+    const [step, setStep] = useState<SignupStep>("choice");
+    const [signupType, setSignupType] = useState<SignupType | null>(null);
+
+    // Form fields
     const [companyName, setCompanyName] = useState("");
     const [username, setUsername] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
-    const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
-    async function handleSubmit(e: FormEvent) {
+    async function handleSignup(e: FormEvent) {
         e.preventDefault();
         setError("");
 
@@ -32,12 +38,14 @@ export default function SignupPage() {
             await signup(username.trim(), email.trim(), password);
             accountCreated = true;
 
-            await createCompany(companyName.trim());
+            if (signupType === "company") {
+                await createCompany(companyName.trim());
+            }
 
-            navigate("/", { replace: true });
+            navigate("/dashboard", { replace: true });
         } catch (err) {
             if (accountCreated) {
-                setError("Account created, but company creation failed. Please try again.");
+                setError("Account created, but company setup failed. Please contact support.");
             } else if (err instanceof ApiError) {
                 setError(err.message || "Could not create account. Please try again.");
             } else {
@@ -48,174 +56,220 @@ export default function SignupPage() {
         }
     }
 
-    const canSubmit = companyName.trim() && username.trim() && email.trim() && password.length >= 1 && confirmPassword.length >= 1;
+    const canSubmit = signupType === "company"
+        ? (companyName.trim() && username.trim() && email.trim() && password.length >= 6 && confirmPassword === password)
+        : (username.trim() && email.trim() && password.length >= 6 && confirmPassword === password);
+
+    const selectType = (type: SignupType) => {
+        setSignupType(type);
+        if (type === "company") {
+            setStep("form");
+        } else {
+            setStep("message");
+        }
+    };
 
     return (
-        <div className="auth-page">
-            <div className="auth-card">
+        <div className="auth-page public-layout-wrapper" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9fafb' }}>
+            <div className="auth-card" style={{
+                background: 'white',
+                padding: '3rem',
+                borderRadius: '12px',
+                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                width: '100%',
+                maxWidth: step === "choice" ? '600px' : '480px'
+            }}>
                 {/* Brand */}
-                <div className="auth-brand">
-                    <div className="auth-brand-icon">P</div>
-                    <span className="auth-brand-name">ACG ProPack</span>
+                <div className="auth-brand" style={{ justifyContent: 'center', marginBottom: '2.5rem' }}>
+                    <Link to="/" style={{ display: 'block' }}>
+                        <img src={logo} alt="ACG ProPack" style={{ height: '150px', width: 'auto', display: 'block' }} />
+                    </Link>
                 </div>
 
-                <h1 className="auth-title">Create account</h1>
-                <p className="auth-subtitle">Get started — it only takes a few seconds.</p>
+                {step === "choice" && (
+                    <>
+                        <div style={{ background: '#e0e7ff', padding: '1rem', borderRadius: '8px', marginBottom: '2rem', color: '#3730a3', fontSize: '0.875rem', textAlign: 'center' }}>
+                            Looking to start a new company? <Link to="/plans" style={{ fontWeight: 700, color: '#4338ca' }}>View plans and get started here.</Link>
+                        </div>
 
-                <form className="auth-form" onSubmit={handleSubmit} noValidate>
-                    <div className="auth-field">
-                        <label className="auth-label" htmlFor="signup-company">
-                            Company Name
-                        </label>
-                        <input
-                            id="signup-company"
-                            className="auth-input"
-                            type="text"
-                            placeholder="Acme Corp"
-                            autoComplete="organization"
-                            value={companyName}
-                            onChange={(e) => setCompanyName(e.target.value)}
-                            required
-                            disabled={loading}
-                        />
-                    </div>
+                        <h1 className="auth-title" style={{ fontSize: '1.5rem', fontWeight: 700, textAlign: 'center', marginBottom: '0.5rem', color: '#111827' }}>
+                            Choose your account type
+                        </h1>
+                        <p className="auth-subtitle" style={{ textAlign: 'center', color: '#6b7280', marginBottom: '2.5rem', fontSize: '0.875rem' }}>
+                            How will you be using the ProPack logistics platform?
+                        </p>
 
-                    <div className="auth-field">
-                        <label className="auth-label" htmlFor="signup-username">
-                            Username
-                        </label>
-                        <input
-                            id="signup-username"
-                            className="auth-input"
-                            type="text"
-                            placeholder="your_username"
-                            autoComplete="username"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            required
-                            disabled={loading}
-                        />
-                    </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
+                            <button
+                                onClick={() => selectType("company")}
+                                className="choice-card"
+                                style={{
+                                    padding: '1.5rem',
+                                    border: '1px solid #e5e7eb',
+                                    borderRadius: '8px',
+                                    textAlign: 'left',
+                                    background: 'none',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                <h3 style={{ margin: '0 0 0.25rem', color: '#111827' }}>Create company account</h3>
+                                <p style={{ margin: 0, fontSize: '0.875rem', color: '#6b7280' }}>Register a new warehouse or logistics company as an admin.</p>
+                            </button>
 
-                    <div className="auth-field">
-                        <label className="auth-label" htmlFor="signup-email">
-                            Email
-                        </label>
-                        <input
-                            id="signup-email"
-                            className="auth-input"
-                            type="email"
-                            placeholder="you@example.com"
-                            autoComplete="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                            disabled={loading}
-                        />
-                    </div>
+                            <button
+                                onClick={() => selectType("join")}
+                                className="choice-card"
+                                style={{
+                                    padding: '1.5rem',
+                                    border: '1px solid #e5e7eb',
+                                    borderRadius: '8px',
+                                    textAlign: 'left',
+                                    background: 'none',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                <h3 style={{ margin: '0 0 0.25rem', color: '#111827' }}>Join existing company</h3>
+                                <p style={{ margin: 0, fontSize: '0.875rem', color: '#6b7280' }}>Connect with your existing team using an invitation or company code.</p>
+                            </button>
 
-                    <div className="auth-field">
-                        <label className="auth-label" htmlFor="signup-password">
-                            Password
-                        </label>
-                        <div className="auth-input-wrapper">
-                            <input
-                                id="signup-password"
-                                className="auth-input"
-                                type={showPassword ? "text" : "password"}
-                                placeholder="••••••••"
-                                autoComplete="new-password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                                disabled={loading}
-                            />
+                            <button
+                                onClick={() => selectType("partner")}
+                                className="choice-card"
+                                style={{
+                                    padding: '1.5rem',
+                                    border: '1px solid #e5e7eb',
+                                    borderRadius: '8px',
+                                    textAlign: 'left',
+                                    background: 'none',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                <h3 style={{ margin: '0 0 0.25rem', color: '#111827' }}>Register as partner company</h3>
+                                <p style={{ margin: 0, fontSize: '0.875rem', color: '#6b7280' }}>Collaborate on shipments and consolidations as a logistics partner.</p>
+                            </button>
+                        </div>
+                    </>
+                )}
+
+                {step === "form" && signupType === "company" && (
+                    <>
+                        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '2rem', textAlign: 'center' }}>
+                            Register your company
+                        </h2>
+                        <form onSubmit={handleSignup} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                            <div className="auth-field">
+                                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.5rem' }}>Company Name</label>
+                                <input
+                                    type="text"
+                                    className="auth-input"
+                                    style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid #d1d5db' }}
+                                    placeholder="Acme Logistics"
+                                    value={companyName}
+                                    onChange={(e) => setCompanyName(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div className="auth-field">
+                                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.5rem' }}>Username</label>
+                                <input
+                                    type="text"
+                                    className="auth-input"
+                                    style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid #d1d5db' }}
+                                    placeholder="admin_username"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div className="auth-field">
+                                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.5rem' }}>Email</label>
+                                <input
+                                    type="email"
+                                    className="auth-input"
+                                    style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid #d1d5db' }}
+                                    placeholder="admin@example.com"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div className="auth-field">
+                                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.5rem' }}>Password</label>
+                                <input
+                                    type="password"
+                                    className="auth-input"
+                                    style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid #d1d5db' }}
+                                    placeholder="••••••••"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div className="auth-field">
+                                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.5rem' }}>Confirm Password</label>
+                                <input
+                                    type="password"
+                                    className="auth-input"
+                                    style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid #d1d5db' }}
+                                    placeholder="••••••••"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    required
+                                />
+                            </div>
+
+                            {error && <div style={{ color: '#dc2626', fontSize: '0.8125rem', textAlign: 'center' }}>{error}</div>}
+
+                            <button
+                                type="submit"
+                                className="btn btn-primary"
+                                style={{ justifyContent: 'center', padding: '0.875rem', marginTop: '1rem' }}
+                                disabled={loading || !canSubmit}
+                            >
+                                {loading ? "Setting up..." : "Create account & setup company"}
+                            </button>
                             <button
                                 type="button"
-                                className="auth-password-toggle"
-                                onClick={() => setShowPassword(!showPassword)}
-                                aria-label={showPassword ? "Hide password" : "Show password"}
-                                disabled={loading}
+                                onClick={() => setStep("choice")}
+                                className="btn btn-ghost"
+                                style={{ justifyContent: 'center' }}
                             >
-                                {showPassword ? (
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49" />
-                                        <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" />
-                                        <path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143" />
-                                        <path d="m2 2 20 20" />
-                                    </svg>
-                                ) : (
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
-                                        <circle cx="12" cy="12" r="3" />
-                                    </svg>
-                                )}
+                                Back
+                            </button>
+                        </form>
+                    </>
+                )}
+
+                {step === "message" && (
+                    <div style={{ textAlign: 'center' }}>
+                        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem' }}>
+                            {signupType === "join" ? "Joining a company" : "Partner registration"}
+                        </h2>
+                        <p style={{ color: '#6b7280', lineHeight: 1.6, marginBottom: '2.5rem' }}>
+                            {signupType === "join"
+                                ? "To join an existing company, please contact your company administrator. They can send you an invitation link or provide your company's access code."
+                                : "Partner registration is currently handled through our sales team. Please contact us to set up your partner account and begin collaborating."}
+                        </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            <Link to="/support" className="btn btn-primary" style={{ justifyContent: 'center' }}>
+                                {signupType === "join" ? "Contact Support" : "Contact Sales"}
+                            </Link>
+                            <button
+                                onClick={() => setStep("choice")}
+                                className="btn btn-ghost"
+                                style={{ justifyContent: 'center' }}
+                            >
+                                Back
                             </button>
                         </div>
                     </div>
+                )}
 
-                    <div className="auth-field">
-                        <label className="auth-label" htmlFor="signup-confirm-password">
-                            Confirm Password
-                        </label>
-                        <div className="auth-input-wrapper">
-                            <input
-                                id="signup-confirm-password"
-                                className="auth-input"
-                                type={showConfirmPassword ? "text" : "password"}
-                                placeholder="••••••••"
-                                autoComplete="new-password"
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                required
-                                disabled={loading}
-                            />
-                            <button
-                                type="button"
-                                className="auth-password-toggle"
-                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
-                                disabled={loading}
-                            >
-                                {showConfirmPassword ? (
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49" />
-                                        <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" />
-                                        <path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143" />
-                                        <path d="m2 2 20 20" />
-                                    </svg>
-                                ) : (
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
-                                        <circle cx="12" cy="12" r="3" />
-                                    </svg>
-                                )}
-                            </button>
-                        </div>
-                    </div>
-
-                    {error && <div className="auth-error" role="alert">{error}</div>}
-
-                    <button
-                        id="signup-submit"
-                        className="auth-btn"
-                        type="submit"
-                        disabled={loading || !canSubmit}
-                    >
-                        {loading && <span className="auth-spinner" aria-hidden="true" />}
-                        {loading ? "Creating account…" : "Create account"}
-                    </button>
-                </form>
-
-                <div className="auth-divider" />
-
-                <div className="auth-footer">
-                    <div className="auth-footer-row">
-                        <span>Already have an account?</span>
-                        <Link className="auth-link" to="/login">
-                            Sign in
-                        </Link>
-                    </div>
+                <div style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid #f3f4f6', textAlign: 'center' }}>
+                    <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                        Already have an account? <Link className="auth-link" to="/login" style={{ color: '#4f46e5', fontWeight: 600, textDecoration: 'none' }}>Sign in</Link>
+                    </p>
                 </div>
             </div>
         </div>

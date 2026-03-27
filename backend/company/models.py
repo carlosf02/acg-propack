@@ -6,6 +6,15 @@ class Company(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # Stripe Fields
+    stripe_customer_id = models.CharField(max_length=255, null=True, blank=True)
+    stripe_subscription_id = models.CharField(max_length=255, null=True, blank=True)
+    subscription_status = models.CharField(max_length=50, default='none')
+    subscription_plan = models.CharField(max_length=100, null=True, blank=True)
+    subscription_current_period_end = models.DateTimeField(null=True, blank=True)
+    subscription_cancel_at_period_end = models.BooleanField(default=False)
+    subscription_queued_plan = models.CharField(max_length=100, null=True, blank=True)
+
     def __str__(self):
         return self.name
 

@@ -230,8 +230,15 @@ export default function AppLayout() {
                                 { to: "/clients/new", label: "Create Locker" },
                             ]}
                         />
-                        <SideNavItem to="/payments" label="Payments" />
-                        <SideNavItem to="/billing" label="Billing" />
+                        <SideNavDropdown
+                            label="Finance"
+                            basePath="/finance"
+                            items={[
+                                { to: "/finance/billing", label: "Billing & Subscription" },
+                                { to: "/finance/payment-methods", label: "Payment Methods" },
+                                { to: "/finance/payments", label: "Payment History" },
+                            ]}
+                        />
                         <SideNavItem to="/search" label="Search" />
                     </nav>
                 </aside>
