@@ -1,5 +1,5 @@
 import { useState, useEffect, ReactNode } from "react";
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import AppLayout from "./layouts/AppLayout";
 import DashboardHome from "./pages/DashboardHome";
 import BackendConnected from "./pages/BackendConnected";
@@ -18,6 +18,9 @@ import ForgotPasswordPage from "./features/auth/pages/ForgotPasswordPage";
 import { me } from "./features/auth/auth.api";
 import { AuthProvider, useAuth } from "./features/auth/AuthContext";
 import { ApiError } from "./api/client";
+
+import ClientHomePage from "./pages/client/ClientHomePage";
+import ClientPackagesPage from "./pages/client/ClientPackagesPage";
 
 // Global Nav Routes
 import ProfilePage from "./pages/ProfilePage";
@@ -41,28 +44,34 @@ import SupportPage from "./pages/SupportPage";
 
 type AuthState = "loading" | "authed" | "unauthed";
 
+const ADMIN_ONLY_PATHS = ["/dashboard", "/warehouses", "/repacking", "/consolidated", "/clients", "/finance", "/backend-connected", "/receiving", "/inventory", "/shipping", "/search", "/admin"];
+
 function AuthGate({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>("loading");
   const { setUser } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     me()
       .then((res) => {
         setUser(res);
         setState("authed");
+        // Redirect CLIENT users away from admin-only paths
+        if (res.auth_role === "CLIENT" && ADMIN_ONLY_PATHS.some(p => location.pathname.startsWith(p))) {
+          navigate("/client", { replace: true });
+        }
       })
       .catch((err) => {
         if (err instanceof ApiError && err.status === 401) {
           setState("unauthed");
-          // If we're on a protected route, redirect to login
-          const protectedPaths = ["/dashboard", "/finance", "/clients", "/warehouses", "/repacking", "/consolidated", "/profile", "/settings", "/admin"];
+          const protectedPaths = ["/dashboard", "/client", "/finance", "/clients", "/warehouses", "/repacking", "/consolidated", "/profile", "/settings", "/admin"];
           if (protectedPaths.some(p => window.location.pathname.startsWith(p))) {
             navigate("/login", { replace: true });
           }
         } else {
           setState("unauthed");
-          const protectedPaths = ["/dashboard", "/finance", "/clients", "/warehouses", "/repacking", "/consolidated", "/profile", "/settings", "/admin"];
+          const protectedPaths = ["/dashboard", "/client", "/finance", "/clients", "/warehouses", "/repacking", "/consolidated", "/profile", "/settings", "/admin"];
           if (protectedPaths.some(p => window.location.pathname.startsWith(p))) {
             navigate("/login", { replace: true });
           }
@@ -90,8 +99,13 @@ function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
-  // Allow children if authed, or if not authed but on a public route (handled by higher level routes anyway)
   return <>{children}</>;
+}
+
+function DefaultRedirect() {
+  const { user } = useAuth();
+  if (user?.auth_role === "CLIENT") return <Navigate to="/client" replace />;
+  return <Navigate to="/dashboard" replace />;
 }
 
 // ---------------------------------------------------------------------------
@@ -134,6 +148,11 @@ export default function App() {
       >
         <Route path="/dashboard" element={<DashboardHome />} />
 
+        {/* Client routes */}
+        <Route path="/client" element={<ClientHomePage />} />
+        <Route path="/client/packages" element={<ClientPackagesPage />} />
+        <Route path="/client/payments" element={<PlaceholderPage title="My Payments" />} />
+
         {/* Clients / Lockers */}
         <Route path="/clients" element={<ListLockerPage />} />
         <Route path="/clients/new" element={<CreateLockerPage />} />
@@ -173,7 +192,7 @@ export default function App() {
         <Route path="/help" element={<HelpPage />} />
 
         {/* Catch-all within authenticated zone */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<DefaultRedirect />} />
       </Route>
     </Routes>
   );

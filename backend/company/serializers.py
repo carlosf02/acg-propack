@@ -66,10 +66,21 @@ class UserMeSerializer(serializers.ModelSerializer):
         try:
             profile = obj.profile
             if profile and profile.role == "CLIENT" and profile.client:
+                c = profile.client
                 return {
-                    "id": profile.client.pk,
-                    "client_code": profile.client.client_code,
-                    "name": profile.client.name,
+                    "id": c.pk,
+                    "client_code": c.client_code,
+                    "client_type": c.client_type,
+                    "name": c.name,
+                    "last_name": c.last_name,
+                    "email": c.email,
+                    "cellphone": c.cellphone,
+                    "phone": c.phone,
+                    "home_phone": c.home_phone,
+                    "address": c.address,
+                    "city": c.city,
+                    "postal_code": c.postal_code,
+                    "company_name": c.company.name if c.company_id else None,
                 }
         except Exception:
             pass

@@ -19,6 +19,22 @@ export interface MeResponse {
         name: string;
     };
     role?: string;
+    auth_role?: string;
+    client?: {
+        id: number;
+        client_code: string;
+        client_type?: string;
+        name: string;
+        last_name?: string | null;
+        email?: string | null;
+        cellphone?: string | null;
+        phone?: string | null;
+        home_phone?: string | null;
+        address?: string | null;
+        city?: string | null;
+        postal_code?: string | null;
+        company_name?: string | null;
+    } | null;
 }
 
 /** Set the Django csrftoken cookie so subsequent POST requests are accepted. */

@@ -47,6 +47,10 @@ export const endpoints = {
     billingSubscriptionCancelSwitch: () => "/api/v1/billing/subscription/cancel-switch/",
     createOnboardingSession: () => "/api/v1/billing/onboarding-session/",
     finalizeOnboarding: (id: string) => `/api/v1/billing/onboarding-session/${id}/finalize/`,
+
+    // Client portal
+    clientPortalSummary: () => "/api/v1/client/summary/",
+    clientPortalPackages: () => "/api/v1/client/packages/",
 } as const;
 
 export type EndpointKey = keyof typeof endpoints;

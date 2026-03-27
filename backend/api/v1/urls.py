@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 from . import views
 from .views import login_view, logout_view, signup_view
 from clients.api import ClientViewSet
+from clients.client_api import ClientPortalSummaryView, ClientPortalPackagesView
 from warehouse.api import WarehouseViewSet, StorageLocationViewSet
 from receiving.api import WarehouseReceiptViewSet
 from shipping.api import ShipmentViewSet
@@ -30,5 +31,7 @@ urlpatterns = [
     path('inventory/', include('inventory.urls')),
     path('repack/', include('receiving.urls')),
     path('billing/', include('billing.urls')),
+    path('client/summary/', ClientPortalSummaryView.as_view(), name='client-portal-summary'),
+    path('client/packages/', ClientPortalPackagesView.as_view(), name='client-portal-packages'),
     path('', include(router.urls)),
 ]

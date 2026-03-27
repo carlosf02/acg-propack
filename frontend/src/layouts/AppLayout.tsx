@@ -114,6 +114,7 @@ export default function AppLayout() {
     const navigate = useNavigate();
     const { user } = useAuth();
     const isAdmin = user?.role === "admin";
+    const isClient = user?.auth_role === "CLIENT";
 
     async function handleLogout() {
         try {
@@ -196,51 +197,59 @@ export default function AppLayout() {
                         color: "white",
                     }}
                 >
-                    <nav>
-                        <SideNavItem to="/" label="Home" />
-                        <SideNavDropdown
-                            label="Warehouses"
-                            basePath="/warehouses"
-                            items={[
-                                { to: "/warehouses", label: "List Warehouses" },
-                                { to: "/warehouses/new", label: "Create Warehouse" },
-                            ]}
-                        />
-                        <SideNavDropdown
-                            label="Repacking"
-                            basePath="/repacking"
-                            items={[
-                                { to: "/repacking", label: "List Repacking" },
-                                { to: "/repacking/new", label: "Create Repack" },
-                            ]}
-                        />
-                        <SideNavDropdown
-                            label="Consolidations"
-                            basePath="/consolidated"
-                            items={[
-                                { to: "/consolidated", label: "List Consolidations" },
-                                { to: "/consolidated/new", label: "Create Consolidation" },
-                            ]}
-                        />
-                        <SideNavDropdown
-                            label="Lockers"
-                            basePath="/clients"
-                            items={[
-                                { to: "/clients", label: "List Lockers" },
-                                { to: "/clients/new", label: "Create Locker" },
-                            ]}
-                        />
-                        <SideNavDropdown
-                            label="Finance"
-                            basePath="/finance"
-                            items={[
-                                { to: "/finance/billing", label: "Billing & Subscription" },
-                                { to: "/finance/payment-methods", label: "Payment Methods" },
-                                { to: "/finance/payments", label: "Payment History" },
-                            ]}
-                        />
-                        <SideNavItem to="/search" label="Search" />
-                    </nav>
+                    {isClient ? (
+                        <nav>
+                            <SideNavItem to="/client" label="Home" />
+                            <SideNavItem to="/client/packages" label="Packages" />
+                            <SideNavItem to="/client/payments" label="Payments" />
+                        </nav>
+                    ) : (
+                        <nav>
+                            <SideNavItem to="/" label="Home" />
+                            <SideNavDropdown
+                                label="Warehouses"
+                                basePath="/warehouses"
+                                items={[
+                                    { to: "/warehouses", label: "List Warehouses" },
+                                    { to: "/warehouses/new", label: "Create Warehouse" },
+                                ]}
+                            />
+                            <SideNavDropdown
+                                label="Repacking"
+                                basePath="/repacking"
+                                items={[
+                                    { to: "/repacking", label: "List Repacking" },
+                                    { to: "/repacking/new", label: "Create Repack" },
+                                ]}
+                            />
+                            <SideNavDropdown
+                                label="Consolidations"
+                                basePath="/consolidated"
+                                items={[
+                                    { to: "/consolidated", label: "List Consolidations" },
+                                    { to: "/consolidated/new", label: "Create Consolidation" },
+                                ]}
+                            />
+                            <SideNavDropdown
+                                label="Lockers"
+                                basePath="/clients"
+                                items={[
+                                    { to: "/clients", label: "List Lockers" },
+                                    { to: "/clients/new", label: "Create Locker" },
+                                ]}
+                            />
+                            <SideNavDropdown
+                                label="Finance"
+                                basePath="/finance"
+                                items={[
+                                    { to: "/finance/billing", label: "Billing & Subscription" },
+                                    { to: "/finance/payment-methods", label: "Payment Methods" },
+                                    { to: "/finance/payments", label: "Payment History" },
+                                ]}
+                            />
+                            <SideNavItem to="/search" label="Search" />
+                        </nav>
+                    )}
                 </aside>
 
                 <main style={{ flex: 1, display: "flex", flexDirection: "column" }}>
