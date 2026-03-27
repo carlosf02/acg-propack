@@ -86,6 +86,7 @@ def provision_client_user(client) -> None:
         role=UserRole.CLIENT,
         client=client,
         is_active=True,
+        must_change_password=True,
     )
 
     logger.info(

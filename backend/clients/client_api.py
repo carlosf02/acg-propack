@@ -7,7 +7,10 @@ They return data scoped to the logged-in client's own records.
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import serializers
+from rest_framework import serializers, status
+from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth import update_session_auth_hash
+from django.core.exceptions import ValidationError as DjangoValidationError
 
 
 class IsClientUser(BasePermission):
@@ -247,3 +250,157 @@ class ClientPortalSummaryView(APIView):
             "repacks": repack_list,
             "latest_progress": latest_progress,
         })
+
+
+class ClientProfileView(APIView):
+    """
+    PATCH /api/v1/client/profile/
+
+    Lets the authenticated client update their own profile fields and marks
+    profile_completed = True on the UserProfile.
+    Only updates the fields that are sent; omitted fields are left unchanged.
+    """
+    permission_classes = [IsAuthenticated, IsClientUser]
+
+    # Fields that map directly from the request body to Client model fields
+    ALLOWED_FIELDS = [
+        'name', 'last_name', 'cellphone', 'home_phone',
+        'address', 'city', 'postal_code',
+        'default_address_line1', 'default_address_line2',
+        'default_city', 'default_state', 'default_zip',
+    ]
+
+    def patch(self, request):
+        client = _get_client(request)
+        data = request.data
+
+        # name is the only required field — must remain non-empty if provided
+        if 'name' in data and not (data['name'] or '').strip():
+            return Response(
+                {"detail": "Name cannot be empty."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Apply whitelisted fields
+        changed = []
+        for field in self.ALLOWED_FIELDS:
+            if field in data:
+                setattr(client, field, (data[field] or '').strip() or None
+                        if data[field] is not None else None)
+                changed.append(field)
+
+        if changed:
+            client.save(update_fields=changed + ['updated_at'])
+
+        # Mark profile step as complete
+        profile = request.user.profile
+        if not profile.profile_completed:
+            profile.profile_completed = True
+            profile.save(update_fields=['profile_completed'])
+
+        return Response({"ok": True})
+
+
+class ClientSetPasswordView(APIView):
+    """
+    POST /api/v1/client/set-password/
+
+    Allows an authenticated client user to set a new password.
+    Clears must_change_password on success.
+    Accessible to any authenticated CLIENT (not just those with must_change_password=True,
+    so it can also serve as a self-service password change later).
+    """
+    permission_classes = [IsAuthenticated, IsClientUser]
+
+    def post(self, request):
+        new_password = request.data.get('new_password', '').strip()
+        confirm_password = request.data.get('confirm_password', '').strip()
+
+        if not new_password:
+            return Response(
+                {"detail": "new_password is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if new_password != confirm_password:
+            return Response(
+                {"detail": "Passwords do not match."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            validate_password(new_password, user=request.user)
+        except DjangoValidationError as exc:
+            return Response(
+                {"detail": " ".join(exc.messages)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        request.user.set_password(new_password)
+        request.user.save(update_fields=['password'])
+        update_session_auth_hash(request, request.user)  # keep session alive after password change
+
+        # Clear the first-login flag
+        try:
+            profile = request.user.profile
+            if profile.must_change_password:
+                profile.must_change_password = False
+                profile.save(update_fields=['must_change_password'])
+        except Exception:
+            pass
+
+        return Response({"ok": True})
+
+
+# ── Step 3: Notification preferences ─────────────────────────────────────────
+
+_NOTIF_FIELDS = [
+    'notify_warehouse_receipt',
+    'notify_repack',
+    'notify_consolidation',
+    'notify_arrived',
+]
+
+
+class ClientNotificationsView(APIView):
+    """
+    GET  /api/v1/client/notifications/ — return current preferences (defaults if not yet set).
+    PATCH /api/v1/client/notifications/ — save preferences, set notifications_configured=True.
+    """
+    permission_classes = [IsAuthenticated, IsClientUser]
+
+    def get(self, request):
+        from clients.models import ClientNotificationPreferences
+        client = _get_client(request)
+        try:
+            prefs = client.notification_prefs
+            data = {f: getattr(prefs, f) for f in _NOTIF_FIELDS}
+        except ClientNotificationPreferences.DoesNotExist:
+            data = {f: True for f in _NOTIF_FIELDS}
+        return Response(data)
+
+    def patch(self, request):
+        from clients.models import ClientNotificationPreferences
+        client = _get_client(request)
+
+        prefs, _ = ClientNotificationPreferences.objects.get_or_create(client=client)
+        for field in _NOTIF_FIELDS:
+            if field in request.data:
+                value = request.data[field]
+                if not isinstance(value, bool):
+                    return Response(
+                        {"detail": f"'{field}' must be a boolean."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                setattr(prefs, field, value)
+        prefs.save()
+
+        # Mark onboarding Step 3 complete
+        try:
+            profile = request.user.profile
+            if not profile.notifications_configured:
+                profile.notifications_configured = True
+                profile.save(update_fields=['notifications_configured'])
+        except Exception:
+            pass
+
+        return Response({"ok": True})

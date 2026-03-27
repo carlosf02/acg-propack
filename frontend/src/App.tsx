@@ -21,6 +21,8 @@ import { ApiError } from "./api/client";
 
 import ClientHomePage from "./pages/client/ClientHomePage";
 import ClientPackagesPage from "./pages/client/ClientPackagesPage";
+import ClientOnboardingPage from "./pages/client/ClientOnboardingPage";
+import ClientSettingsPage from "./pages/client/ClientSettingsPage";
 
 // Global Nav Routes
 import ProfilePage from "./pages/ProfilePage";
@@ -57,9 +59,13 @@ function AuthGate({ children }: { children: ReactNode }) {
       .then((res) => {
         setUser(res);
         setState("authed");
-        // Redirect CLIENT users away from admin-only paths
-        if (res.auth_role === "CLIENT" && ADMIN_ONLY_PATHS.some(p => location.pathname.startsWith(p))) {
-          navigate("/client", { replace: true });
+        if (res.auth_role === "CLIENT") {
+          const needsOnboarding = res.must_change_password || !res.profile_completed || !res.notifications_configured;
+          if (needsOnboarding && location.pathname !== "/client/onboarding") {
+            navigate("/client/onboarding", { replace: true });
+          } else if (!needsOnboarding && ADMIN_ONLY_PATHS.some(p => location.pathname.startsWith(p))) {
+            navigate("/client", { replace: true });
+          }
         }
       })
       .catch((err) => {
@@ -104,7 +110,10 @@ function AuthGate({ children }: { children: ReactNode }) {
 
 function DefaultRedirect() {
   const { user } = useAuth();
-  if (user?.auth_role === "CLIENT") return <Navigate to="/client" replace />;
+  if (user?.auth_role === "CLIENT") {
+    if (user.must_change_password || !user.profile_completed || !user.notifications_configured) return <Navigate to="/client/onboarding" replace />;
+    return <Navigate to="/client" replace />;
+  }
   return <Navigate to="/dashboard" replace />;
 }
 
@@ -149,9 +158,11 @@ export default function App() {
         <Route path="/dashboard" element={<DashboardHome />} />
 
         {/* Client routes */}
+        <Route path="/client/onboarding" element={<ClientOnboardingPage />} />
         <Route path="/client" element={<ClientHomePage />} />
         <Route path="/client/packages" element={<ClientPackagesPage />} />
         <Route path="/client/payments" element={<PlaceholderPage title="My Payments" />} />
+        <Route path="/client/settings" element={<ClientSettingsPage />} />
 
         {/* Clients / Lockers */}
         <Route path="/clients" element={<ListLockerPage />} />

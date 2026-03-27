@@ -149,7 +149,7 @@ export default function AppLayout() {
 
                     <div style={{ display: "flex", gap: 8 }}>
                         {isAdmin && <TopMenuButton label="Administration" to="/admin" />}
-                        <TopMenuButton label="Settings" to="/settings" />
+                        <TopMenuButton label="Settings" to={isClient ? "/client/settings" : "/settings"} />
                         <TopMenuButton label="Help" to="/help" />
                     </div>
                 </div>

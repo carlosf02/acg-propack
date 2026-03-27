@@ -76,6 +76,35 @@ class UserProfile(TimeStampedModel):
         related_name="users",
     )
     is_active = models.BooleanField(default=True)
+    must_change_password = models.BooleanField(
+        default=False,
+        help_text="Set to True when a temporary password has been issued. Cleared after first-login password change.",
+    )
+    profile_completed = models.BooleanField(
+        default=False,
+        help_text="Set to True after the client completes the onboarding profile/address step.",
+    )
+    notifications_configured = models.BooleanField(
+        default=False,
+        help_text="Set to True after the client completes the onboarding notification preferences step.",
+    )
 
     def __str__(self):
         return f"{self.user.username} ({self.role})"
+
+
+class ClientNotificationPreferences(TimeStampedModel):
+    """Notification preferences for a client user, set during onboarding Step 3."""
+    client = models.OneToOneField(
+        Client,
+        on_delete=models.CASCADE,
+        related_name="notification_prefs",
+    )
+    notify_warehouse_receipt = models.BooleanField(default=True, help_text="Notify when a warehouse receipt is created.")
+    notify_repack = models.BooleanField(default=True, help_text="Notify when a repack is created.")
+    notify_consolidation = models.BooleanField(default=True, help_text="Notify when a consolidation is created.")
+    notify_arrived = models.BooleanField(default=True, help_text="Notify when a package arrives / is ready for pickup.")
+    notify_shipment_dispatched = models.BooleanField(default=True, help_text="Notify when a shipment is dispatched.")
+
+    def __str__(self):
+        return f"NotificationPrefs({self.client})"

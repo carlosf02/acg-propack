@@ -18,10 +18,13 @@ class UserMeSerializer(serializers.ModelSerializer):
     role = serializers.SerializerMethodField()
     auth_role = serializers.SerializerMethodField()
     client = serializers.SerializerMethodField()
+    must_change_password = serializers.SerializerMethodField()
+    profile_completed = serializers.SerializerMethodField()
+    notifications_configured = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'company', 'role', 'auth_role', 'client']
+        fields = ['id', 'username', 'email', 'company', 'role', 'auth_role', 'client', 'must_change_password', 'profile_completed', 'notifications_configured']
 
     def get_company(self, obj):
         from .utils import get_active_company_member
@@ -81,10 +84,33 @@ class UserMeSerializer(serializers.ModelSerializer):
                     "city": c.city,
                     "postal_code": c.postal_code,
                     "company_name": c.company.name if c.company_id else None,
+                    "alt_address_line1": c.default_address_line1,
+                    "alt_address_line2": c.default_address_line2,
+                    "alt_city": c.default_city,
+                    "alt_state": c.default_state,
+                    "alt_zip": c.default_zip,
                 }
         except Exception:
             pass
         return None
+
+    def get_must_change_password(self, obj):
+        try:
+            return bool(obj.profile.must_change_password)
+        except Exception:
+            return False
+
+    def get_profile_completed(self, obj):
+        try:
+            return bool(obj.profile.profile_completed)
+        except Exception:
+            return False
+
+    def get_notifications_configured(self, obj):
+        try:
+            return bool(obj.profile.notifications_configured)
+        except Exception:
+            return False
 
 
 class AssociateCompanySerializer(serializers.ModelSerializer):

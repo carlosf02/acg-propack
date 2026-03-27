@@ -20,6 +20,9 @@ export interface MeResponse {
     };
     role?: string;
     auth_role?: string;
+    must_change_password?: boolean;
+    profile_completed?: boolean;
+    notifications_configured?: boolean;
     client?: {
         id: number;
         client_code: string;
@@ -34,6 +37,11 @@ export interface MeResponse {
         city?: string | null;
         postal_code?: string | null;
         company_name?: string | null;
+        alt_address_line1?: string | null;
+        alt_address_line2?: string | null;
+        alt_city?: string | null;
+        alt_state?: string | null;
+        alt_zip?: string | null;
     } | null;
 }
 

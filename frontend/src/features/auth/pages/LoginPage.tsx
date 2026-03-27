@@ -20,7 +20,11 @@ export default function LoginPage() {
         try {
             await login(identifier.trim(), password);
             const user = await me();
-            const dest = user.auth_role === "CLIENT" ? "/client" : "/dashboard";
+            let dest = "/dashboard";
+            if (user.auth_role === "CLIENT") {
+                const needsOnboarding = user.must_change_password || !user.profile_completed || !user.notifications_configured;
+                dest = needsOnboarding ? "/client/onboarding" : "/client";
+            }
             navigate(dest, { replace: true });
         } catch (err) {
             if (err instanceof ApiError) {

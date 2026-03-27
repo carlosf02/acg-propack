@@ -51,6 +51,9 @@ export const endpoints = {
     // Client portal
     clientPortalSummary: () => "/api/v1/client/summary/",
     clientPortalPackages: () => "/api/v1/client/packages/",
+    clientSetPassword: () => "/api/v1/client/set-password/",
+    clientProfile: () => "/api/v1/client/profile/",
+    clientNotifications: () => "/api/v1/client/notifications/",
 } as const;
 
 export type EndpointKey = keyof typeof endpoints;
