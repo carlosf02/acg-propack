@@ -84,6 +84,19 @@ export async function signup(
     });
 }
 
+/**
+ * Returns the correct post-login destination path for a given user.
+ * CLIENT users are routed to onboarding if any onboarding flags are unset,
+ * otherwise to the client portal. All other roles go to the dashboard.
+ */
+export function getPostLoginDestination(user: MeResponse): string {
+    if (user.auth_role === "CLIENT") {
+        const needsOnboarding = user.must_change_password || !user.profile_completed || !user.notifications_configured;
+        return needsOnboarding ? "/client/onboarding" : "/client";
+    }
+    return "/dashboard";
+}
+
 /** Create a new company/tenant for the authenticated user. */
 export async function createCompany(name: string): Promise<{ id: number; name: string }> {
     return apiPost<{ id: number; name: string }>(endpoints.companies(), { name });

@@ -10,7 +10,7 @@ export default function ListLockerPage() {
     const [filterOption, setFilterOption] = useState('All');
 
     // Data states
-    const [lockersData, setLockersData] = useState<Client[]>([]);
+    const [clientsData, setClientsData] = useState<Client[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
@@ -29,7 +29,7 @@ export default function ListLockerPage() {
                 if (!isMounted) return;
                 // Support both Paginated<Client> and Client[]
                 const data = Array.isArray(res) ? res : res.results;
-                setLockersData(data);
+                setClientsData(data);
             })
             .catch(err => {
                 if (!isMounted) return;
@@ -49,24 +49,24 @@ export default function ListLockerPage() {
     }, [searchTerm, fromDate, untilDate, filterOption, rowsPerPage]);
 
     // Apply filters locally (for this phase, we map fields to existing filter logic)
-    const filteredLockers = lockersData.filter(locker => {
+    const filteredClients = clientsData.filter(client => {
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
-            const fullName = `${locker.name || ''} ${locker.last_name || ''}`.trim().toLowerCase();
+            const fullName = `${client.name || ''} ${client.last_name || ''}`.trim().toLowerCase();
             return (
                 fullName.includes(term) ||
-                (locker.email || '').toLowerCase().includes(term) ||
-                (locker.client_code || '').toLowerCase().includes(term) ||
-                (locker.cellphone || '').includes(term) ||
-                (locker.home_phone || '').includes(term)
+                (client.email || '').toLowerCase().includes(term) ||
+                (client.client_code || '').toLowerCase().includes(term) ||
+                (client.cellphone || '').includes(term) ||
+                (client.home_phone || '').includes(term)
             );
         }
         return true;
     });
 
     // Pagination math
-    const totalPages = Math.max(1, Math.ceil(filteredLockers.length / Number(rowsPerPage)));
-    const paginatedLockers = filteredLockers.slice(
+    const totalPages = Math.max(1, Math.ceil(filteredClients.length / Number(rowsPerPage)));
+    const paginatedClients = filteredClients.slice(
         (currentPage - 1) * Number(rowsPerPage),
         currentPage * Number(rowsPerPage)
     );
@@ -101,12 +101,12 @@ export default function ListLockerPage() {
                 <div className="llp-stats-card">
                     <div className="llp-stat-item">
                         <span className="llp-stat-label">Total:</span>
-                        <span className="llp-stat-value">{lockersData.length}</span>
+                        <span className="llp-stat-value">{clientsData.length}</span>
                     </div>
                     <div className="llp-stat-divider"></div>
                     <div className="llp-stat-item">
                         <span className="llp-stat-label">Filtered:</span>
-                        <span className="llp-stat-value">{filteredLockers.length}</span>
+                        <span className="llp-stat-value">{filteredClients.length}</span>
                     </div>
                 </div>
             </div>
@@ -178,31 +178,31 @@ export default function ListLockerPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {paginatedLockers.length > 0 ? (
-                                    paginatedLockers.map((locker, index) => {
-                                        const fullName = locker.client_type === 'company'
-                                            ? locker.name
-                                            : `${locker.name || ''} ${locker.last_name || ''}`.trim();
+                                {paginatedClients.length > 0 ? (
+                                    paginatedClients.map((client, index) => {
+                                        const fullName = client.client_type === 'company'
+                                            ? client.name
+                                            : `${client.name || ''} ${client.last_name || ''}`.trim();
 
                                         // Format date if present
-                                        const createdDate = locker.created_at
-                                            ? new Date(locker.created_at).toLocaleDateString()
+                                        const createdDate = client.created_at
+                                            ? new Date(client.created_at).toLocaleDateString()
                                             : 'N/A';
 
                                         return (
-                                            <tr key={locker.id} className={index % 2 === 0 ? 'llp-row-even' : 'llp-row-odd'}>
+                                            <tr key={client.id} className={index % 2 === 0 ? 'llp-row-even' : 'llp-row-odd'}>
                                                 <td>
                                                     <div className="llp-client-name">{fullName || 'Unnamed'}</div>
-                                                    <div className="llp-client-id">{locker.client_code || `ID: ${locker.id}`}</div>
+                                                    <div className="llp-client-id">{client.client_code || `ID: ${client.id}`}</div>
                                                 </td>
                                                 <td>{createdDate}</td>
-                                                <td>{locker.email || '-'}</td>
+                                                <td>{client.email || '-'}</td>
                                                 <td>
-                                                    <div className="llp-phone-main">{locker.cellphone || locker.phone || 'N/A'}</div>
-                                                    {locker.home_phone && <div className="llp-phone-sub">Alt: {locker.home_phone}</div>}
+                                                    <div className="llp-phone-main">{client.cellphone || client.phone || 'N/A'}</div>
+                                                    {client.home_phone && <div className="llp-phone-sub">Alt: {client.home_phone}</div>}
                                                 </td>
-                                                <td>{locker.city || '-'}</td>
-                                                <td>{locker.postal_code || '-'}</td>
+                                                <td>{client.city || '-'}</td>
+                                                <td>{client.postal_code || '-'}</td>
                                             </tr>
                                         );
                                     })

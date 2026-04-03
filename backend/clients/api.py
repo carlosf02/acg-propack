@@ -34,6 +34,12 @@ class ClientSerializer(serializers.ModelSerializer):
         return data
 
 
+class ClientMinimalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Client
+        fields = ['id', 'client_code', 'name']
+
+
 class ClientViewSet(CompanyScopedViewSetMixin, viewsets.ModelViewSet):
     queryset = Client.objects.all()
     serializer_class = ClientSerializer

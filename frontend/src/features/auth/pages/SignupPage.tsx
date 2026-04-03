@@ -1,6 +1,6 @@
 import { useState, FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { signup, createCompany } from "../auth.api";
+import { signup, createCompany, me, getPostLoginDestination } from "../auth.api";
 import { ApiError } from "../../../api/client";
 import logo from "../../../assets/acg-logo.png";
 import "../auth.css";
@@ -42,7 +42,8 @@ export default function SignupPage() {
                 await createCompany(companyName.trim());
             }
 
-            navigate("/dashboard", { replace: true });
+            const user = await me();
+            navigate(getPostLoginDestination(user), { replace: true });
         } catch (err) {
             if (accountCreated) {
                 setError("Account created, but company setup failed. Please contact support.");

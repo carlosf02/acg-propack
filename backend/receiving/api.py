@@ -4,7 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import WarehouseReceipt, WarehouseReceiptLine
-from clients.api import ClientSerializer
+from clients.api import ClientSerializer, ClientMinimalSerializer
 from warehouse.api import WarehouseMinimalSerializer
 from inventory.models import InventoryBalance, InventoryTransactionLine
 from shipping.models import ShipmentItem
@@ -13,14 +13,6 @@ from .trace_serializers import (
     TraceWRMinimalSerializer, TraceRepackSummarySerializer, TraceShipmentSummarySerializer
 )
 from receiving.models import RepackLink
-from clients.models import Client
-
-
-class WRClientMinimalSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Client
-        fields = ['id', 'client_code', 'name']
-
 
 class WRParentMinimalSerializer(serializers.ModelSerializer):
     class Meta:
@@ -55,7 +47,7 @@ class WarehouseReceiptLineSerializer(serializers.ModelSerializer):
 
 
 class WarehouseReceiptSerializer(serializers.ModelSerializer):
-    client_details = WRClientMinimalSerializer(source='client', read_only=True)
+    client_details = ClientMinimalSerializer(source='client', read_only=True)
     warehouse_details = WarehouseMinimalSerializer(source='received_warehouse', read_only=True)
     parent_wr_details = WRParentMinimalSerializer(source='parent_wr', read_only=True)
 

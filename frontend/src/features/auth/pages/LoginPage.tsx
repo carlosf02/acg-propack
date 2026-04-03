@@ -1,6 +1,6 @@
 import { useState, FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { login, me } from "../auth.api";
+import { login, me, getPostLoginDestination } from "../auth.api";
 import { ApiError } from "../../../api/client";
 import logo from "../../../assets/acg-logo.png";
 import "../auth.css"; // Keep base styles but I'll override some for premium feel
@@ -20,12 +20,7 @@ export default function LoginPage() {
         try {
             await login(identifier.trim(), password);
             const user = await me();
-            let dest = "/dashboard";
-            if (user.auth_role === "CLIENT") {
-                const needsOnboarding = user.must_change_password || !user.profile_completed || !user.notifications_configured;
-                dest = needsOnboarding ? "/client/onboarding" : "/client";
-            }
-            navigate(dest, { replace: true });
+            navigate(getPostLoginDestination(user), { replace: true });
         } catch (err) {
             if (err instanceof ApiError) {
                 setError(err.message || "Invalid credentials.");

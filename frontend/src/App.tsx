@@ -15,7 +15,7 @@ import LoginPage from "./features/auth/pages/LoginPage";
 import SignupPage from "./features/auth/pages/SignupPage";
 import CheckoutPage from "./features/auth/pages/CheckoutPage";
 import ForgotPasswordPage from "./features/auth/pages/ForgotPasswordPage";
-import { me } from "./features/auth/auth.api";
+import { me, getPostLoginDestination } from "./features/auth/auth.api";
 import { AuthProvider, useAuth } from "./features/auth/AuthContext";
 import { ApiError } from "./api/client";
 
@@ -60,11 +60,11 @@ function AuthGate({ children }: { children: ReactNode }) {
         setUser(res);
         setState("authed");
         if (res.auth_role === "CLIENT") {
-          const needsOnboarding = res.must_change_password || !res.profile_completed || !res.notifications_configured;
-          if (needsOnboarding && location.pathname !== "/client/onboarding") {
-            navigate("/client/onboarding", { replace: true });
-          } else if (!needsOnboarding && ADMIN_ONLY_PATHS.some(p => location.pathname.startsWith(p))) {
-            navigate("/client", { replace: true });
+          const dest = getPostLoginDestination(res);
+          if (dest === "/client/onboarding" && location.pathname !== "/client/onboarding") {
+            navigate(dest, { replace: true });
+          } else if (dest === "/client" && ADMIN_ONLY_PATHS.some(p => location.pathname.startsWith(p))) {
+            navigate(dest, { replace: true });
           }
         }
       })
@@ -110,11 +110,7 @@ function AuthGate({ children }: { children: ReactNode }) {
 
 function DefaultRedirect() {
   const { user } = useAuth();
-  if (user?.auth_role === "CLIENT") {
-    if (user.must_change_password || !user.profile_completed || !user.notifications_configured) return <Navigate to="/client/onboarding" replace />;
-    return <Navigate to="/client" replace />;
-  }
-  return <Navigate to="/dashboard" replace />;
+  return <Navigate to={user ? getPostLoginDestination(user) : "/dashboard"} replace />;
 }
 
 // ---------------------------------------------------------------------------
