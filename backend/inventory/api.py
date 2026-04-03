@@ -3,22 +3,21 @@ from django_filters.rest_framework import DjangoFilterBackend
 from core.mixins import CompanyScopedViewSetMixin
 from .models import InventoryBalance
 from clients.api import ClientMinimalSerializer
+from warehouse.models import Warehouse, StorageLocation
+from receiving.models import WarehouseReceipt
 
 class InvWarehouseMinimalSerializer(serializers.ModelSerializer):
     class Meta:
-        from warehouse.models import Warehouse
         model = Warehouse
         fields = ['id', 'code', 'name']
 
 class InvLocationMinimalSerializer(serializers.ModelSerializer):
     class Meta:
-        from warehouse.models import StorageLocation
         model = StorageLocation
         fields = ['id', 'code', 'location_type']
 
 class InvWRMinimalSerializer(serializers.ModelSerializer):
     class Meta:
-        from receiving.models import WarehouseReceipt
         model = WarehouseReceipt
         fields = ['id', 'wr_number', 'tracking_number', 'status']
 
