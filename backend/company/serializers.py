@@ -130,6 +130,7 @@ class OfficeSerializer(serializers.ModelSerializer):
             'phone', 'email', 'is_active', 'created_at', 'updated_at',
             'company', 'associate_company', 'associate_company_name', 'owner_type'
         ]
+        read_only_fields = ['id', 'company', 'associate_company', 'created_at', 'updated_at']
 
     def get_owner_type(self, obj):
         if obj.company_id:

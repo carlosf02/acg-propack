@@ -126,14 +126,12 @@ class AssociateCompanyViewSet(viewsets.ModelViewSet):
     admin_only_writes = True  # flag checked by CompanyObjectPermission
 
     def get_queryset(self):
-        member = get_active_company_member(self.request.user)
-        if not member:
-            return AssociateCompany.objects.none()
-        return AssociateCompany.objects.filter(company=member.company, is_active=True)
+        company = get_active_company(self.request.user)
+        return AssociateCompany.objects.filter(company=company, is_active=True)
 
     def perform_create(self, serializer):
-        member = get_active_company_member(self.request.user)
-        serializer.save(company=member.company)
+        company = get_active_company(self.request.user)
+        serializer.save(company=company)
 
     def perform_destroy(self, instance):
         instance.is_active = False
@@ -148,11 +146,7 @@ class OfficeViewSet(viewsets.ModelViewSet):
     admin_only_writes = True
 
     def get_queryset(self):
-        member = get_active_company_member(self.request.user)
-        if not member:
-            return Office.objects.none()
-
-        company = member.company
+        company = get_active_company(self.request.user)
         queryset = Office.objects.filter(
             Q(company=company) | Q(associate_company__company=company),
             is_active=True,
@@ -169,18 +163,18 @@ class OfficeViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        member = get_active_company_member(self.request.user)
+        company = get_active_company(self.request.user)
 
         associate_company_id = self.request.data.get('associate_company')
         if associate_company_id:
             try:
-                assoc = AssociateCompany.objects.get(id=associate_company_id, company=member.company)
+                assoc = AssociateCompany.objects.get(id=int(associate_company_id), company=company)
                 serializer.save(associate_company=assoc, company=None)
-            except AssociateCompany.DoesNotExist:
+            except (AssociateCompany.DoesNotExist, ValueError, TypeError):
                 from rest_framework.exceptions import ValidationError
                 raise ValidationError({"associate_company": "Invalid associate company."})
         else:
-            serializer.save(company=member.company, associate_company=None)
+            serializer.save(company=company, associate_company=None)
 
     def perform_destroy(self, instance):
         instance.is_active = False

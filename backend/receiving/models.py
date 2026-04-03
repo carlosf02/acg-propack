@@ -25,7 +25,7 @@ class ShippingMethod(models.TextChoices):
 class WarehouseReceipt(TimeStampedModel):
     company = models.ForeignKey('company.Company', on_delete=models.PROTECT, related_name="warehouse_receipts")
     id = models.BigAutoField(primary_key=True)
-    wr_number = models.CharField(max_length=50, unique=True, db_index=True)
+    wr_number = models.CharField(max_length=50, unique=True, db_index=True, blank=True)
     client = models.ForeignKey(Client, on_delete=models.PROTECT, related_name="warehouse_receipts")
     received_warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, null=True, blank=True)
     tracking_number = models.CharField(max_length=100, null=True, blank=True, db_index=True)
@@ -81,6 +81,14 @@ class WarehouseReceipt(TimeStampedModel):
             )
         ]
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Auto-generate wr_number after first insert if not provided
+        if not self.wr_number:
+            company_id = self.company_id or 0
+            self.wr_number = f"WR-{company_id}-{self.pk:06d}"
+            WarehouseReceipt.objects.filter(pk=self.pk).update(wr_number=self.wr_number)
+
     def __str__(self):
         return f"{self.wr_number} ({self.client.client_code})"
 
@@ -116,7 +124,7 @@ class WarehouseReceiptLine(TimeStampedModel):
     weight = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     pieces = models.PositiveIntegerField(default=1)
     # Cubic feet: L*W*H / 1728. Stored so we don't recalculate on every read.
-    volume_cf = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True)
+    volume_cf = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
 
     repackable = models.BooleanField(default=False)
     bill_invoice = models.BooleanField(default=False)

@@ -21,6 +21,12 @@ class WRParentMinimalSerializer(serializers.ModelSerializer):
 
 
 class WarehouseReceiptLineSerializer(serializers.ModelSerializer):
+    def validate_volume_cf(self, value):
+        if value is not None:
+            from decimal import Decimal, ROUND_HALF_UP
+            value = value.quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP)
+        return value
+
     class Meta:
         model = WarehouseReceiptLine
         fields = [
@@ -92,7 +98,7 @@ class WarehouseReceiptSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
         ]
-        read_only_fields = ['company', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'wr_number', 'company', 'created_at', 'updated_at']
 
     def validate(self, data):
         # Validate dimensions and weights (legacy single-WR fields)

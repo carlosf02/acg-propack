@@ -99,7 +99,7 @@ export default function CreateWarehousePage() {
                 const l = Number(pkg.length) || 0;
                 const w = Number(pkg.width) || 0;
                 const h = Number(pkg.height) || 0;
-                pkg.volume = (l * w * h) / 1728;
+                pkg.volume = Math.round(((l * w * h) / 1728) * 10000) / 10000;
             }
 
             updated[index] = pkg;
@@ -148,7 +148,7 @@ export default function CreateWarehousePage() {
                 height: pkg.height ? String(pkg.height) : undefined,
                 weight: pkg.weight ? String(pkg.weight) : undefined,
                 pieces: pkg.pieces ? Number(pkg.pieces) : 1, // Default 1
-                volume_cf: pkg.volume ? String(pkg.volume) : undefined,
+                volume_cf: pkg.volume ? (Math.round(pkg.volume * 10000) / 10000).toFixed(4) : undefined,
                 repackable: pkg.repackable,
                 bill_invoice: pkg.billInvoice ? "true" : "false", // or map to string if your backend expects that
                 // No specific notes row in PackageFormData yet, so omitting
