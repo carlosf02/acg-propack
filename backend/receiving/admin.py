@@ -1,5 +1,11 @@
 from django.contrib import admin
-from .models import WarehouseReceipt, WarehouseReceiptLine, RepackOperation, RepackLink
+from .models import WarehouseReceipt, WarehouseReceiptLine, WarehouseReceiptLineTracking, RepackOperation, RepackLink
+
+
+class WarehouseReceiptLineTrackingInline(admin.TabularInline):
+    model = WarehouseReceiptLineTracking
+    extra = 0
+    fields = ('tracking_number', 'order')
 
 
 class WarehouseReceiptLineInline(admin.TabularInline):
@@ -19,7 +25,6 @@ class WarehouseReceiptAdmin(admin.ModelAdmin):
     list_display = (
         'wr_number',
         'client',
-        'tracking_number',
         'status',
         'received_at',
         'received_warehouse',
@@ -44,6 +49,9 @@ class WarehouseReceiptLineAdmin(admin.ModelAdmin):
     list_filter = ('carrier', 'package_type', 'repackable', 'bill_invoice')
     search_fields = ('tracking_number', 'description', 'receipt__wr_number')
     readonly_fields = ('created_at', 'updated_at')
+    inlines = [WarehouseReceiptLineTrackingInline]
+
+
 
 
 

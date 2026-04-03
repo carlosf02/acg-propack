@@ -11,7 +11,7 @@ export interface PackageFormData {
     date: string;
     carrier: string;
     type: string;
-    tracking: string;
+    trackingNumbers: string[];
     description: string;
     value: number | "";
     length: number | "";

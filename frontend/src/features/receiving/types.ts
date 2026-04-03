@@ -4,6 +4,7 @@ export interface WarehouseReceiptLine {
     carrier?: string;
     package_type?: string;
     tracking_number?: string;
+    tracking_numbers?: Array<{ id: number; tracking_number: string; order: number }>;
     description?: string;
     declared_value?: string; // Often returned as decimal string
     length?: string;
@@ -38,7 +39,7 @@ export interface WarehouseReceiptLineCreate {
     date?: string;
     carrier?: string;
     package_type?: string;
-    tracking_number?: string;
+    tracking_numbers?: Array<{ tracking_number: string; order: number }>;
     description?: string;
     declared_value?: string;
     length?: string;

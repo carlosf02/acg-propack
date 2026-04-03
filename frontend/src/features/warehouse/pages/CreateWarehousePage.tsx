@@ -19,7 +19,7 @@ const INITIAL_PACKAGE: PackageFormData = {
     date: new Date().toISOString().split('T')[0],
     carrier: "",
     type: "",
-    tracking: "",
+    trackingNumbers: [""],
     description: "",
     value: "",
     length: "",
@@ -102,6 +102,16 @@ export default function CreateWarehousePage() {
                 pkg.volume = Math.round(((l * w * h) / 1728) * 10000) / 10000;
             }
 
+            if (field === 'pieces') {
+                const count = Math.max(1, Number(value) || 1);
+                const current = pkg.trackingNumbers;
+                if (count > current.length) {
+                    pkg.trackingNumbers = [...current, ...Array(count - current.length).fill('')];
+                } else if (count < current.length) {
+                    pkg.trackingNumbers = current.slice(0, count);
+                }
+            }
+
             updated[index] = pkg;
             return updated;
         });
@@ -140,7 +150,10 @@ export default function CreateWarehousePage() {
                 date: pkg.date || undefined,
                 carrier: pkg.carrier || undefined,
                 package_type: pkg.type || undefined,
-                tracking_number: pkg.tracking || undefined,
+                tracking_numbers: Array.from(
+                    { length: Math.max(1, Number(pkg.pieces) || 1) },
+                    (_, i) => ({ tracking_number: (pkg.trackingNumbers[i] ?? '').trim(), order: i })
+                ).filter(t => t.tracking_number !== ''),
                 description: pkg.description || undefined,
                 declared_value: pkg.value ? String(pkg.value) : undefined,
                 length: pkg.length ? String(pkg.length) : undefined,
@@ -183,8 +196,7 @@ export default function CreateWarehousePage() {
 
             await createWarehouseReceipt(payload);
 
-            // Navigate to home or receiving list page
-            navigate('/dashboard');
+            navigate('/warehouses');
 
         } catch (err) {
             console.error('Failed to create warehouse receipt:', err);

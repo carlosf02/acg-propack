@@ -3,7 +3,7 @@ from core.mixins import CompanyScopedViewSetMixin
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import WarehouseReceipt, WarehouseReceiptLine
+from .models import WarehouseReceipt, WarehouseReceiptLine, WarehouseReceiptLineTracking
 from clients.api import ClientSerializer, ClientMinimalSerializer
 from warehouse.api import WarehouseMinimalSerializer
 from inventory.models import InventoryBalance, InventoryTransactionLine
@@ -20,7 +20,28 @@ class WRParentMinimalSerializer(serializers.ModelSerializer):
         fields = ['id', 'wr_number', 'tracking_number']
 
 
+class WarehouseReceiptLineTrackingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WarehouseReceiptLineTracking
+        fields = ['id', 'tracking_number', 'order']
+        read_only_fields = ['id']
+
+
 class WarehouseReceiptLineSerializer(serializers.ModelSerializer):
+    tracking_numbers = WarehouseReceiptLineTrackingSerializer(many=True, read_only=True)
+
+    def to_internal_value(self, data):
+        # Extract tracking_numbers from the raw input before DRF processes the rest.
+        # DRF does not reliably pass writable nested data for reverse FK relations
+        # through validated_data, so we handle it manually here.
+        raw_tracking = data.get('tracking_numbers', [])
+        ret = super().to_internal_value(data)
+        ret['tracking_numbers'] = [
+            t for t in raw_tracking
+            if isinstance(t, dict) and str(t.get('tracking_number', '')).strip()
+        ]
+        return ret
+
     def validate_volume_cf(self, value):
         if value is not None:
             from decimal import Decimal, ROUND_HALF_UP
@@ -35,6 +56,7 @@ class WarehouseReceiptLineSerializer(serializers.ModelSerializer):
             'carrier',
             'package_type',
             'tracking_number',
+            'tracking_numbers',
             'description',
             'declared_value',
             'length',
@@ -110,16 +132,23 @@ class WarehouseReceiptSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         lines_data = validated_data.pop('lines', [])
-        # company is injected by CompanyScopedViewSetMixin.perform_create via serializer.save(company=...)
-        # It will be in validated_data at this point since perform_create passes it as kwarg.
-        # But because we need it for lines too, pull it from the instance after creation.
         receipt = WarehouseReceipt.objects.create(**validated_data)
         for line_data in lines_data:
-            WarehouseReceiptLine.objects.create(
+            tracking_data = line_data.pop('tracking_numbers', [])
+            line = WarehouseReceiptLine.objects.create(
                 receipt=receipt,
                 company=receipt.company,
                 **line_data,
             )
+            for t in tracking_data:
+                WarehouseReceiptLineTracking.objects.create(
+                    line=line,
+                    company=receipt.company,
+                    **t,
+                )
+            if tracking_data:
+                line.tracking_number = ", ".join(t['tracking_number'] for t in tracking_data)
+                line.save(update_fields=['tracking_number'])
         return receipt
 
     def update(self, instance, validated_data):
@@ -132,16 +161,26 @@ class WarehouseReceiptSerializer(serializers.ModelSerializer):
         if lines_data is not None:
             instance.lines.all().delete()
             for line_data in lines_data:
-                WarehouseReceiptLine.objects.create(
+                tracking_data = line_data.pop('tracking_numbers', [])
+                line = WarehouseReceiptLine.objects.create(
                     receipt=instance,
                     company=instance.company,
                     **line_data,
                 )
+                for t in tracking_data:
+                    WarehouseReceiptLineTracking.objects.create(
+                        line=line,
+                        company=instance.company,
+                        **t,
+                    )
+                if tracking_data:
+                    line.tracking_number = ", ".join(t['tracking_number'] for t in tracking_data)
+                    line.save(update_fields=['tracking_number'])
         return instance
 
 
 class WarehouseReceiptViewSet(CompanyScopedViewSetMixin, viewsets.ModelViewSet):
-    queryset = WarehouseReceipt.objects.prefetch_related('lines').all()
+    queryset = WarehouseReceipt.objects.prefetch_related('lines', 'lines__tracking_numbers').all()
     serializer_class = WarehouseReceiptSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['client', 'status', 'received_warehouse']

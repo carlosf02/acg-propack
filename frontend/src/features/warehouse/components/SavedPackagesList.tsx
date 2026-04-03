@@ -35,7 +35,7 @@ export function SavedPackagesList({ packages, onEdit, onRemove }: Props) {
                     {packages.map((pkg, index) => (
                         <tr key={pkg.id} style={{ borderBottom: "1px solid #eee" }}>
                             <td style={{ padding: "12px 16px", color: "#333", fontWeight: 500 }}>{index + 1}</td>
-                            <td style={{ padding: "12px 16px" }}>{pkg.tracking || "-"}</td>
+                            <td style={{ padding: "12px 16px" }}>{pkg.trackingNumbers.filter(Boolean).join(", ") || "-"}</td>
                             <td style={{ padding: "12px 16px", textTransform: "capitalize" }}>{pkg.carrier || "-"}</td>
                             <td style={{ padding: "12px 16px" }}>{pkg.type || "-"}</td>
                             <td style={{ padding: "12px 16px" }}>{pkg.volume.toFixed(2)}</td>

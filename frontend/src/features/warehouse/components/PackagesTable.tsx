@@ -97,7 +97,23 @@ export function PackagesTable({ packages, onChange, onAddRow, onRemoveRow }: Pro
                                     </select>
                                 </td>
                                 <td style={{ padding: "8px" }}>
-                                    <input type="text" placeholder="Tracking" value={pkg.tracking} onChange={(e) => onChange(index, "tracking", e.target.value)} style={inputStyle} />
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                                        {Array.from({ length: Math.max(1, Number(pkg.pieces) || 1) }, (_, i) => (
+                                            <input
+                                                key={i}
+                                                type="text"
+                                                placeholder={Number(pkg.pieces) > 1 ? `Tracking ${i + 1}` : "Tracking"}
+                                                value={pkg.trackingNumbers[i] ?? ""}
+                                                onChange={(e) => {
+                                                    const count = Math.max(1, Number(pkg.pieces) || 1);
+                                                    const full = Array.from({ length: count }, (_, j) => pkg.trackingNumbers[j] ?? '');
+                                                    full[i] = e.target.value;
+                                                    onChange(index, "trackingNumbers", full);
+                                                }}
+                                                style={inputStyle}
+                                            />
+                                        ))}
+                                    </div>
                                 </td>
                                 <td style={{ padding: "8px" }}>
                                     <input type="text" placeholder="Description" value={pkg.description} onChange={(e) => onChange(index, "description", e.target.value)} style={{ ...inputStyle, minWidth: "150px" }} />

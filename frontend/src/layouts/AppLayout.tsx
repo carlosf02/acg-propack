@@ -126,7 +126,7 @@ export default function AppLayout() {
     }
 
     return (
-        <div style={{ minHeight: "100vh", background: "#f6f6f6" }}>
+        <div style={{ minHeight: "100vh", background: "#f6f6f6", minWidth: "fit-content" }}>
             <header
                 style={{
                     height: 60,

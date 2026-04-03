@@ -141,6 +141,27 @@ class WarehouseReceiptLine(TimeStampedModel):
         return f"Line {self.id} → {self.receipt.wr_number} ({self.package_type or 'pkg'})"
 
 
+class WarehouseReceiptLineTracking(TimeStampedModel):
+    line = models.ForeignKey(
+        WarehouseReceiptLine,
+        on_delete=models.CASCADE,
+        related_name="tracking_numbers",
+    )
+    company = models.ForeignKey(
+        'company.Company',
+        on_delete=models.PROTECT,
+        related_name="receipt_line_trackings",
+    )
+    tracking_number = models.CharField(max_length=100)
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return f"{self.tracking_number} → Line {self.line_id}"
+
+
 class OperationType(models.TextChoices):
     CONSOLIDATE = "CONSOLIDATE", "Consolidate"
     REPACK = "REPACK", "Repack"

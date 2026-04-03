@@ -1,31 +1,29 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { listWarehouseReceipts } from '../../receiving/receiving.api';
 import './ListWarehousePage.css';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Types (reconciled with WarehouseReceiptSerializer) ───────────────────────
 
-type ShippingType = 'All' | 'Air' | 'Sea' | 'Ground';
+type ShippingType = 'All' | 'air' | 'sea' | 'ground';
 
 type SearchField = 'all' | 'warehouseNumber' | 'trackingNumber' | 'sender' | 'destination';
 
 type WarehouseRecord = {
-    id: string;
-    warehouseNumber: string;
-    trackingNumber: string;
-    sender: string;
-    destination: string;
-    shippingType: Exclude<ShippingType, 'All'>;
-    agency: string;
-    createdAt: string; // ISO date string YYYY-MM-DD
-    pieces: number;
-    weight: number;
-    volume: number;           // e.g. cubic inches or cm³
-    invoiceNumber?: string;   // populated once assigned to an invoice
+    id: number;
+    wr_number: string;
+    tracking_number?: string | null;
+    client_details?: { id: number; client_code: string; name: string } | null;
+    recipient_name?: string | null;
+    shipping_method?: 'air' | 'sea' | 'ground' | null;
+    associate_company?: number | null;
+    received_at?: string | null;
+    lines: Array<{
+        pieces: number;
+        weight?: string | null;
+        volume_cf?: string | null;
+    }>;
 };
-
-// ─── Placeholder data (empty until API) ──────────────────────────────────────
-
-const warehouseData: WarehouseRecord[] = [];
 
 // ─── Agency options (extend once API is ready) ───────────────────────────────
 const AGENCY_OPTIONS: string[] = [];
@@ -39,14 +37,19 @@ const SEARCH_FIELD_LABELS: Record<SearchField, string> = {
 };
 
 const SHIPPING_BADGE_CLASS: Record<Exclude<ShippingType, 'All'>, string> = {
-    Air: 'lwp-badge-air',
-    Sea: 'lwp-badge-sea',
-    Ground: 'lwp-badge-ground',
+    air: 'lwp-badge-air',
+    sea: 'lwp-badge-sea',
+    ground: 'lwp-badge-ground',
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ListWarehousePage() {
+    // ── Data state ────────────────────────────────────────────────────────────
+    const [warehouses, setWarehouses] = useState<WarehouseRecord[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+
     // ── Filter state ─────────────────────────────────────────────────────────
     const [searchTerm, setSearchTerm] = useState('');
     const [searchField, setSearchField] = useState<SearchField>('all');
@@ -59,39 +62,70 @@ export default function ListWarehousePage() {
     const [rowsPerPage, setRowsPerPage] = useState('10');
     const [currentPage, setCurrentPage] = useState(1);
 
+    // Fetch on mount
+    useEffect(() => {
+        let isMounted = true;
+        setLoading(true);
+        listWarehouseReceipts()
+            .then(res => {
+                if (!isMounted) return;
+                setWarehouses(Array.isArray(res) ? res : res.results);
+            })
+            .catch(() => {
+                if (!isMounted) return;
+                setError('Failed to load warehouse receipts.');
+            })
+            .finally(() => {
+                if (isMounted) setLoading(false);
+            });
+        return () => { isMounted = false; };
+    }, []);
+
     // Reset to page 1 when filters change
     useEffect(() => {
         setCurrentPage(1);
     }, [searchTerm, searchField, fromDate, untilDate, shippingType, agency, rowsPerPage]);
 
     // ── Filtering logic ───────────────────────────────────────────────────────
-    const filteredWarehouses = warehouseData.filter((wh) => {
+    const filteredWarehouses = warehouses.filter((wh) => {
+        const wrNumber = wh.wr_number ?? '';
+        const trackingNumber = wh.tracking_number ?? '';
+        const sender = wh.client_details?.name ?? '';
+        const destination = wh.recipient_name ?? '';
+        const date = wh.received_at?.slice(0, 10) ?? '';
+
         // Search term
         if (searchTerm.trim()) {
             const term = searchTerm.trim().toLowerCase();
             if (searchField === 'all') {
                 const matchesAny = (
-                    wh.warehouseNumber.toLowerCase().includes(term) ||
-                    wh.trackingNumber.toLowerCase().includes(term) ||
-                    wh.sender.toLowerCase().includes(term) ||
-                    wh.destination.toLowerCase().includes(term)
+                    wrNumber.toLowerCase().includes(term) ||
+                    trackingNumber.toLowerCase().includes(term) ||
+                    sender.toLowerCase().includes(term) ||
+                    destination.toLowerCase().includes(term)
                 );
                 if (!matchesAny) return false;
             } else {
-                const fieldValue = wh[searchField]?.toString().toLowerCase() ?? '';
-                if (!fieldValue.includes(term)) return false;
+                const fieldMap: Record<SearchField, string> = {
+                    all: '',
+                    warehouseNumber: wrNumber,
+                    trackingNumber: trackingNumber,
+                    sender: sender,
+                    destination: destination,
+                };
+                if (!fieldMap[searchField].toLowerCase().includes(term)) return false;
             }
         }
 
         // Date range
-        if (fromDate && wh.createdAt < fromDate) return false;
-        if (untilDate && wh.createdAt > untilDate) return false;
+        if (fromDate && date < fromDate) return false;
+        if (untilDate && date > untilDate) return false;
 
         // Shipping type
-        if (shippingType !== 'All' && wh.shippingType !== shippingType) return false;
+        if (shippingType !== 'All' && wh.shipping_method !== shippingType) return false;
 
         // Agency
-        if (agency !== 'All' && wh.agency !== agency) return false;
+        if (agency !== 'All' && wh.associate_company?.toString() !== agency) return false;
 
         return true;
     });
@@ -134,7 +168,7 @@ export default function ListWarehousePage() {
                     <div className="lwp-stats-card">
                         <div className="lwp-stat-item">
                             <span className="lwp-stat-label">Total:</span>
-                            <span className="lwp-stat-value">{warehouseData.length}</span>
+                            <span className="lwp-stat-value">{warehouses.length}</span>
                         </div>
                         <div className="lwp-stat-divider" />
                         <div className="lwp-stat-item">
@@ -214,9 +248,9 @@ export default function ListWarehousePage() {
                             onChange={(e) => setShippingType(e.target.value as ShippingType)}
                         >
                             <option value="All">All Types</option>
-                            <option value="Air">Air</option>
-                            <option value="Sea">Sea</option>
-                            <option value="Ground">Ground</option>
+                            <option value="air">Air</option>
+                            <option value="sea">Sea</option>
+                            <option value="ground">Ground</option>
                         </select>
                     </div>
 
@@ -236,71 +270,85 @@ export default function ListWarehousePage() {
                     </div>
                 </div>
 
-                {/* ── Table placeholder (to be built next) ── */}
+                {/* ── Table ── */}
                 <div className="lwp-table-responsive">
-                    <table className="lwp-table">
-                        <thead>
-                            <tr>
-                                <th>Warehouse #</th>
-                                <th>Tracking #</th>
-                                <th>Sender</th>
-                                <th>Destination</th>
-                                <th>Type</th>
-                                <th>Agency</th>
-                                <th>Date</th>
-                                <th>Pcs</th>
-                                <th>Weight</th>
-                                <th>Volume</th>
-                                <th>Invoice</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {paginated.length > 0 ? (
-                                paginated.map((wh, index) => (
-                                    <tr
-                                        key={wh.id}
-                                        className={index % 2 === 0 ? 'lwp-row-even' : 'lwp-row-odd'}
-                                    >
-                                        <td>
-                                            <div className="lwp-wh-number">{wh.warehouseNumber}</div>
-                                        </td>
-                                        <td>
-                                            <div className="lwp-wh-tracking">{wh.trackingNumber}</div>
-                                        </td>
-                                        <td>{wh.sender}</td>
-                                        <td>{wh.destination}</td>
-                                        <td>
-                                            <span
-                                                className={`lwp-badge ${SHIPPING_BADGE_CLASS[wh.shippingType]}`}
+                    {loading ? (
+                        <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
+                            Loading…
+                        </div>
+                    ) : error ? (
+                        <div style={{ textAlign: 'center', padding: '40px', color: '#dc2626' }}>
+                            {error}
+                        </div>
+                    ) : (
+                        <table className="lwp-table">
+                            <thead>
+                                <tr>
+                                    <th>Warehouse #</th>
+                                    <th>Tracking #</th>
+                                    <th>Sender</th>
+                                    <th>Destination</th>
+                                    <th>Type</th>
+                                    <th>Agency</th>
+                                    <th>Date</th>
+                                    <th>Pcs</th>
+                                    <th>Weight</th>
+                                    <th>Volume</th>
+                                    <th>Invoice</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {paginated.length > 0 ? (
+                                    paginated.map((wh, index) => {
+                                        const totalPieces = wh.lines.reduce((sum, l) => sum + (l.pieces || 0), 0);
+                                        const totalWeight = wh.lines.reduce((sum, l) => sum + parseFloat(l.weight ?? '0'), 0);
+                                        const totalVolume = wh.lines.reduce((sum, l) => sum + parseFloat(l.volume_cf ?? '0'), 0);
+                                        return (
+                                            <tr
+                                                key={wh.id}
+                                                className={index % 2 === 0 ? 'lwp-row-even' : 'lwp-row-odd'}
                                             >
-                                                {wh.shippingType}
-                                            </span>
-                                        </td>
-                                        <td>{wh.agency}</td>
-                                        <td>{wh.createdAt}</td>
-                                        <td>{wh.pieces}</td>
-                                        <td>{wh.weight} lb</td>
-                                        <td>{wh.volume} in³</td>
-                                        <td>
-                                            {wh.invoiceNumber
-                                                ? <span className="lwp-wh-number">{wh.invoiceNumber}</span>
-                                                : <span style={{ color: '#9ca3af' }}>—</span>
-                                            }
+                                                <td>
+                                                    <div className="lwp-wh-number">{wh.wr_number}</div>
+                                                </td>
+                                                <td>
+                                                    <div className="lwp-wh-tracking">{wh.tracking_number ?? '—'}</div>
+                                                </td>
+                                                <td>{wh.client_details?.name ?? '—'}</td>
+                                                <td>{wh.recipient_name ?? '—'}</td>
+                                                <td>
+                                                    {wh.shipping_method ? (
+                                                        <span className={`lwp-badge ${SHIPPING_BADGE_CLASS[wh.shipping_method]}`}>
+                                                            {wh.shipping_method.charAt(0).toUpperCase() + wh.shipping_method.slice(1)}
+                                                        </span>
+                                                    ) : (
+                                                        <span style={{ color: '#9ca3af' }}>—</span>
+                                                    )}
+                                                </td>
+                                                <td>{wh.associate_company ?? <span style={{ color: '#9ca3af' }}>—</span>}</td>
+                                                <td>{wh.received_at?.slice(0, 10) ?? '—'}</td>
+                                                <td>{totalPieces}</td>
+                                                <td>{totalWeight > 0 ? `${totalWeight.toFixed(2)} lb` : '—'}</td>
+                                                <td>{totalVolume > 0 ? `${totalVolume.toFixed(4)} ft³` : '—'}</td>
+                                                <td>
+                                                    <span style={{ color: '#9ca3af' }}>—</span>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                ) : (
+                                    <tr>
+                                        <td
+                                            colSpan={11}
+                                            style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}
+                                        >
+                                            No warehouses found.
                                         </td>
                                     </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td
-                                        colSpan={11}
-                                        style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}
-                                    >
-                                        No warehouses found.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+                                )}
+                            </tbody>
+                        </table>
+                    )}
                 </div>
 
                 {/* ── Pagination footer ── */}
