@@ -17,6 +17,11 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
+def get_client_from_request(request):
+    """Returns the Client instance linked to the requesting user's profile."""
+    return request.user.profile.client
+
+
 def _generate_temp_password(length: int = 12) -> str:
     """Return a random password containing letters and digits."""
     alphabet = string.ascii_letters + string.digits

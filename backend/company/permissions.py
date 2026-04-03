@@ -1,10 +1,5 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
-
-
-def _get_member(request):
-    """Helper: return the active CompanyMember for this request's user, or None."""
-    from company.utils import get_active_company_member
-    return get_active_company_member(request.user)
+from company.utils import get_active_company_member
 
 
 class IsCompanyMember(BasePermission):
@@ -18,7 +13,7 @@ class IsCompanyMember(BasePermission):
             return False
         if request.user.is_superuser:
             return True
-        return _get_member(request) is not None
+        return get_active_company_member(request.user) is not None
 
 
 class IsCompanyAdmin(BasePermission):
@@ -32,7 +27,7 @@ class IsCompanyAdmin(BasePermission):
             return False
         if request.user.is_superuser:
             return True
-        member = _get_member(request)
+        member = get_active_company_member(request.user)
         return member is not None and member.role == 'admin'
 
 
@@ -57,7 +52,7 @@ class CompanyObjectPermission(BasePermission):
         if request.user.is_superuser:
             return True
 
-        member = _get_member(request)
+        member = get_active_company_member(request.user)
         if member is None:
             self.message = "You must belong to an active company to access this resource."
             return False

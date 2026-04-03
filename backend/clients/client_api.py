@@ -11,6 +11,7 @@ from rest_framework import serializers, status
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import update_session_auth_hash
 from django.core.exceptions import ValidationError as DjangoValidationError
+from clients.utils import get_client_from_request
 
 
 class IsClientUser(BasePermission):
@@ -24,10 +25,6 @@ class IsClientUser(BasePermission):
             return request.user.profile.role == "CLIENT" and request.user.profile.client is not None
         except Exception:
             return False
-
-
-def _get_client(request):
-    return request.user.profile.client
 
 
 # ---------------------------------------------------------------------------
@@ -82,7 +79,7 @@ class ClientPortalPackagesView(APIView):
     def get(self, request):
         from receiving.models import WarehouseReceipt, RepackOperation
 
-        client = _get_client(request)
+        client = get_client_from_request(request)
         search = (request.query_params.get('search') or '').strip().lower()
         from_date = request.query_params.get('from_date') or ''
         until_date = request.query_params.get('until_date') or ''
@@ -187,7 +184,7 @@ class ClientPortalSummaryView(APIView):
     def get(self, request):
         from receiving.models import WarehouseReceipt, RepackOperation
 
-        client = _get_client(request)
+        client = get_client_from_request(request)
 
         wrs = (
             WarehouseReceipt.objects
@@ -271,7 +268,7 @@ class ClientProfileView(APIView):
     ]
 
     def patch(self, request):
-        client = _get_client(request)
+        client = get_client_from_request(request)
         data = request.data
 
         # name is the only required field — must remain non-empty if provided
@@ -370,7 +367,7 @@ class ClientNotificationsView(APIView):
 
     def get(self, request):
         from clients.models import ClientNotificationPreferences
-        client = _get_client(request)
+        client = get_client_from_request(request)
         try:
             prefs = client.notification_prefs
             data = {f: getattr(prefs, f) for f in _NOTIF_FIELDS}
@@ -380,7 +377,7 @@ class ClientNotificationsView(APIView):
 
     def patch(self, request):
         from clients.models import ClientNotificationPreferences
-        client = _get_client(request)
+        client = get_client_from_request(request)
 
         prefs, _ = ClientNotificationPreferences.objects.get_or_create(client=client)
         for field in _NOTIF_FIELDS:

@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from company.models import AssociateCompany, Office
+from company.utils import get_company_from_serializer_context
 from .models import Consolidation
 
 
@@ -52,15 +53,8 @@ class ConsolidationSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'reference_code', 'company', 'created_at', 'updated_at']
 
-    def _get_company(self):
-        request = self.context.get('request')
-        if request:
-            from company.utils import get_active_company
-            return get_active_company(request.user)
-        return None
-
     def validate(self, data):
-        company = self._get_company()
+        company = get_company_from_serializer_context(self.context)
         if not company:
             raise serializers.ValidationError("Could not determine active company.")
 

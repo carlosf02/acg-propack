@@ -26,3 +26,15 @@ def get_active_company(user):
 
     from rest_framework.exceptions import PermissionDenied
     raise PermissionDenied("You must belong to an active company to perform this operation.")
+
+
+def get_company_from_serializer_context(context):
+    """
+    Extracts the active company from a DRF serializer's context dict.
+    Returns None if the request is not available in context (e.g. in tests
+    that instantiate serializers without a request).
+    """
+    request = context.get('request')
+    if request:
+        return get_active_company(request.user)
+    return None
