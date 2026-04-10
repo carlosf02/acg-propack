@@ -1,12 +1,16 @@
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createClient } from '../clients.api';
 import { ClientCreate } from '../types';
+import { listAssociateCompanies } from '../../company/associates.api';
+import { AssociateCompany } from '../../company/associates.types';
+import { useAuth } from '../../auth/AuthContext';
 import { ApiError } from '../../../api/client';
 import './CreateLockerPage.css';
 
 export default function CreateLockerPage() {
     const navigate = useNavigate();
+    const { user } = useAuth();
 
     // UI State
     const [clientType, setClientType] = useState<'person' | 'company'>('person');
@@ -18,6 +22,23 @@ export default function CreateLockerPage() {
     const [cellphone, setCellphone] = useState('');
     const [homePhone, setHomePhone] = useState('');
     const [email, setEmail] = useState('');
+    const [agencyId, setAgencyId] = useState<number | ''>('');
+
+    // Agency dropdown data
+    const [agencies, setAgencies] = useState<AssociateCompany[]>([]);
+
+    useEffect(() => {
+        let isMounted = true;
+        listAssociateCompanies()
+            .then(res => {
+                if (!isMounted) return;
+                setAgencies(Array.isArray(res) ? res : res.results);
+            })
+            .catch(err => {
+                console.error('Failed to load agencies:', err);
+            });
+        return () => { isMounted = false; };
+    }, []);
 
     // We ignore repeatEmail/passwords visually for this API integration since the backend 
     // endpoint just creates a Client record (not a full user auth record with password yet).
@@ -48,6 +69,7 @@ export default function CreateLockerPage() {
             cellphone: cellphone,
             home_phone: homePhone,
             email: email,
+            associate_company: agencyId === '' ? null : agencyId,
         };
 
         try {
@@ -209,6 +231,19 @@ export default function CreateLockerPage() {
                             onChange={e => setEmail(e.target.value)}
                             required
                         />
+                    </div>
+                    <div className="clp-col">
+                        <label className="clp-label">Agency</label>
+                        <select
+                            className="clp-input"
+                            value={agencyId}
+                            onChange={e => setAgencyId(e.target.value ? Number(e.target.value) : '')}
+                        >
+                            <option value="">{user?.company?.name ?? 'My Company'}</option>
+                            {agencies.map(a => (
+                                <option key={a.id} value={a.id}>{a.name}</option>
+                            ))}
+                        </select>
                     </div>
                 </div>
 

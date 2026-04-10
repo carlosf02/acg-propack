@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import acgLogo from "../assets/acg-logo.png";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { logout } from "../features/auth/auth.api";
+import { logout, getPostLoginDestination } from "../features/auth/auth.api";
 import { useAuth } from "../features/auth/AuthContext";
 import SetupBanner from "../components/SetupBanner";
 
@@ -115,6 +115,7 @@ export default function AppLayout() {
     const { user } = useAuth();
     const isAdmin = user?.role === "admin";
     const isClient = user?.auth_role === "CLIENT";
+    const homeHref = user ? getPostLoginDestination(user) : "/dashboard";
 
     async function handleLogout() {
         try {
@@ -139,7 +140,7 @@ export default function AppLayout() {
                 }}
             >
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <Link to="/" style={{ textDecoration: "none", color: "inherit", position: "relative", top: 6 }}>
+                    <Link to={homeHref} style={{ textDecoration: "none", color: "inherit", position: "relative", top: 6 }}>
                         <img
                             src={acgLogo}
                             alt="ACG ProPack"

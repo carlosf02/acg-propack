@@ -175,6 +175,7 @@ export default function ListLockerPage() {
                                     <th>Phone</th>
                                     <th>City</th>
                                     <th>Postal Code</th>
+                                    <th>Agency</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -203,12 +204,13 @@ export default function ListLockerPage() {
                                                 </td>
                                                 <td>{client.city || '-'}</td>
                                                 <td>{client.postal_code || '-'}</td>
+                                                <td>{client.associate_company_details?.name || '-'}</td>
                                             </tr>
                                         );
                                     })
                                 ) : (
                                     <tr>
-                                        <td colSpan={6} style={{ textAlign: 'center', padding: '32px', color: '#6b7280' }}>
+                                        <td colSpan={7} style={{ textAlign: 'center', padding: '32px', color: '#6b7280' }}>
                                             No clients yet.
                                         </td>
                                     </tr>

@@ -4,7 +4,15 @@ from .models import Client
 from core.mixins import CompanyScopedViewSetMixin
 
 
+class _AssociateCompanyInlineSerializer(serializers.Serializer):
+    """Tiny inline serializer — avoids a circular import from company.serializers."""
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+
+
 class ClientSerializer(serializers.ModelSerializer):
+    associate_company_details = _AssociateCompanyInlineSerializer(source='associate_company', read_only=True)
+
     class Meta:
         model = Client
         fields = [
@@ -22,6 +30,8 @@ class ClientSerializer(serializers.ModelSerializer):
             'postal_code',
             'is_active',
             'company',
+            'associate_company',
+            'associate_company_details',
             'created_at',
             'updated_at',
         ]

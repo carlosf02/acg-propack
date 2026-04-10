@@ -14,6 +14,14 @@ class Client(TimeStampedModel):
         on_delete=models.PROTECT,
         related_name="clients",
     )
+    associate_company = models.ForeignKey(
+        'company.AssociateCompany',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="clients",
+        help_text="Agency this client belongs to — used to attribute billing per agency.",
+    )
     client_code = models.CharField(max_length=20, unique=True, db_index=True, blank=True)
     client_type = models.CharField(
         max_length=20,

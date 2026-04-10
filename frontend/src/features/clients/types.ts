@@ -11,6 +11,8 @@ export interface Client {
     address?: string;
     city?: string;
     postal_code?: string;
+    associate_company?: number | null;
+    associate_company_details?: { id: number; name: string } | null;
     created_at?: string;
     updated_at?: string;
 }
@@ -26,4 +28,5 @@ export interface ClientCreate {
     address?: string;
     city?: string;
     postal_code?: string;
+    associate_company?: number | null;
 }
