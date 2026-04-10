@@ -7,10 +7,11 @@ interface Props {
 export function TotalsSummary({ packages }: Props) {
     const totals = packages.reduce(
         (acc, pkg) => {
-            acc.volume += pkg.volume;
-            acc.weight += Number(pkg.weight) || 0;
-            acc.pieces += Number(pkg.pieces) || 0;
-            acc.value += Number(pkg.value) || 0;
+            const pieces = Math.max(1, Number(pkg.pieces) || 1);
+            acc.volume += pkg.volume * pieces;
+            acc.weight += (Number(pkg.weight) || 0) * pieces;
+            acc.pieces += pieces;
+            acc.value += (Number(pkg.value) || 0) * pieces;
             return acc;
         },
         { volume: 0, weight: 0, pieces: 0, value: 0 }

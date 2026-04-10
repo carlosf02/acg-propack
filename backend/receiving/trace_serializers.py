@@ -31,8 +31,18 @@ class TraceInventoryTransactionLineSerializer(serializers.Serializer):
 class TraceWRMinimalSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     wr_number = serializers.CharField()
-    tracking_number = serializers.CharField(allow_null=True)
+    tracking_number = serializers.SerializerMethodField()
     status = serializers.CharField()
+
+    def get_tracking_number(self, obj):
+        # Aggregate tracking numbers from the line tracking table (source of truth).
+        # Caller should prefetch lines + lines__tracking_numbers to avoid N+1.
+        trackings = []
+        for line in obj.lines.all():
+            for t in line.tracking_numbers.all():
+                if t.tracking_number:
+                    trackings.append(t.tracking_number)
+        return ', '.join(trackings) if trackings else None
 
 class TraceRepackSummarySerializer(serializers.Serializer):
     repack_operation_id = serializers.IntegerField(source='repack_operation.id')

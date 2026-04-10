@@ -1,23 +1,26 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { listWarehouseReceipts } from '../../receiving/receiving.api';
+import { useAuth } from '../../auth/AuthContext';
 import './ListWarehousePage.css';
 
 // ─── Types (reconciled with WarehouseReceiptSerializer) ───────────────────────
 
 type ShippingType = 'All' | 'air' | 'sea' | 'ground';
 
-type SearchField = 'all' | 'warehouseNumber' | 'trackingNumber' | 'sender' | 'destination';
+type SearchField = 'all' | 'warehouseNumber' | 'sender' | 'destination';
 
 type WarehouseRecord = {
     id: number;
     wr_number: string;
     tracking_number?: string | null;
-    client_details?: { id: number; client_code: string; name: string } | null;
+    client_details?: { id: number; client_code: string; name: string; city?: string | null } | null;
     recipient_name?: string | null;
     shipping_method?: 'air' | 'sea' | 'ground' | null;
     associate_company?: number | null;
+    associate_company_details?: { id: number; name: string } | null;
     received_at?: string | null;
+    wr_status_display?: { type: 'not_processed' | 'processed' | 'repacked'; reference: string | null } | null;
     lines: Array<{
         pieces: number;
         weight?: string | null;
@@ -31,9 +34,8 @@ const AGENCY_OPTIONS: string[] = [];
 const SEARCH_FIELD_LABELS: Record<SearchField, string> = {
     all: 'All Fields',
     warehouseNumber: 'Warehouse #',
-    trackingNumber: 'Tracking #',
     sender: 'Sender',
-    destination: 'Destination',
+    destination: 'Receiver',
 };
 
 const SHIPPING_BADGE_CLASS: Record<Exclude<ShippingType, 'All'>, string> = {
@@ -45,6 +47,8 @@ const SHIPPING_BADGE_CLASS: Record<Exclude<ShippingType, 'All'>, string> = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ListWarehousePage() {
+    const { user } = useAuth();
+
     // ── Data state ────────────────────────────────────────────────────────────
     const [warehouses, setWarehouses] = useState<WarehouseRecord[]>([]);
     const [loading, setLoading] = useState(false);
@@ -89,7 +93,6 @@ export default function ListWarehousePage() {
     // ── Filtering logic ───────────────────────────────────────────────────────
     const filteredWarehouses = warehouses.filter((wh) => {
         const wrNumber = wh.wr_number ?? '';
-        const trackingNumber = wh.tracking_number ?? '';
         const sender = wh.client_details?.name ?? '';
         const destination = wh.recipient_name ?? '';
         const date = wh.received_at?.slice(0, 10) ?? '';
@@ -100,7 +103,6 @@ export default function ListWarehousePage() {
             if (searchField === 'all') {
                 const matchesAny = (
                     wrNumber.toLowerCase().includes(term) ||
-                    trackingNumber.toLowerCase().includes(term) ||
                     sender.toLowerCase().includes(term) ||
                     destination.toLowerCase().includes(term)
                 );
@@ -109,7 +111,6 @@ export default function ListWarehousePage() {
                 const fieldMap: Record<SearchField, string> = {
                     all: '',
                     warehouseNumber: wrNumber,
-                    trackingNumber: trackingNumber,
                     sender: sender,
                     destination: destination,
                 };
@@ -206,7 +207,6 @@ export default function ListWarehousePage() {
                         >
                             <option value="all">All Fields</option>
                             <option value="warehouseNumber">Warehouse #</option>
-                            <option value="trackingNumber">Tracking #</option>
                             <option value="sender">Sender</option>
                             <option value="destination">Destination</option>
                         </select>
@@ -285,8 +285,8 @@ export default function ListWarehousePage() {
                             <thead>
                                 <tr>
                                     <th>Warehouse #</th>
-                                    <th>Tracking #</th>
                                     <th>Sender</th>
+                                    <th>Receiver</th>
                                     <th>Destination</th>
                                     <th>Type</th>
                                     <th>Agency</th>
@@ -294,7 +294,7 @@ export default function ListWarehousePage() {
                                     <th>Pcs</th>
                                     <th>Weight</th>
                                     <th>Volume</th>
-                                    <th>Invoice</th>
+                                    <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -311,11 +311,9 @@ export default function ListWarehousePage() {
                                                 <td>
                                                     <div className="lwp-wh-number">{wh.wr_number}</div>
                                                 </td>
-                                                <td>
-                                                    <div className="lwp-wh-tracking">{wh.tracking_number ?? '—'}</div>
-                                                </td>
                                                 <td>{wh.client_details?.name ?? '—'}</td>
                                                 <td>{wh.recipient_name ?? '—'}</td>
+                                                <td>{wh.client_details?.city ?? '—'}</td>
                                                 <td>
                                                     {wh.shipping_method ? (
                                                         <span className={`lwp-badge ${SHIPPING_BADGE_CLASS[wh.shipping_method]}`}>
@@ -325,13 +323,22 @@ export default function ListWarehousePage() {
                                                         <span style={{ color: '#9ca3af' }}>—</span>
                                                     )}
                                                 </td>
-                                                <td>{wh.associate_company ?? <span style={{ color: '#9ca3af' }}>—</span>}</td>
+                                                <td>{wh.associate_company_details?.name ?? user?.company?.name ?? '—'}</td>
                                                 <td>{wh.received_at?.slice(0, 10) ?? '—'}</td>
                                                 <td>{totalPieces}</td>
                                                 <td>{totalWeight > 0 ? `${totalWeight.toFixed(2)} lb` : '—'}</td>
                                                 <td>{totalVolume > 0 ? `${totalVolume.toFixed(4)} ft³` : '—'}</td>
                                                 <td>
-                                                    <span style={{ color: '#9ca3af' }}>—</span>
+                                                    {(() => {
+                                                        const s = wh.wr_status_display;
+                                                        if (!s || s.type === 'not_processed') {
+                                                            return <span style={{ color: '#9ca3af', fontSize: '13px' }}>Not Processed</span>;
+                                                        }
+                                                        if (s.type === 'processed') {
+                                                            return <span style={{ color: '#0052cc', fontWeight: 600, fontSize: '13px' }}>Processed · {s.reference}</span>;
+                                                        }
+                                                        return <span style={{ color: '#7c3aed', fontWeight: 600, fontSize: '13px' }}>Repacked · {s.reference}</span>;
+                                                    })()}
                                                 </td>
                                             </tr>
                                         );

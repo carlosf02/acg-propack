@@ -4,10 +4,11 @@ Client-portal API views.
 These views are accessible to CLIENT-role users only (not company staff/admin).
 They return data scoped to the logged-in client's own records.
 """
+from decimal import Decimal
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import serializers, status
+from rest_framework import status
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import update_session_auth_hash
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -28,39 +29,41 @@ class IsClientUser(BasePermission):
 
 
 # ---------------------------------------------------------------------------
-# Serializers
+# Helpers
 # ---------------------------------------------------------------------------
 
-class WRSummarySerializer(serializers.Serializer):
-    id = serializers.IntegerField()
-    kind = serializers.SerializerMethodField()
-    reference = serializers.CharField(source='wr_number')
-    status = serializers.CharField()
-    date = serializers.DateTimeField(source='received_at')
-    description = serializers.CharField(allow_null=True)
-    weight = serializers.DecimalField(source='weight_value', max_digits=10, decimal_places=2, allow_null=True)
+def _aggregate_wr_lines(wr):
+    """
+    Roll up per-line data into a single header-shaped summary for the client portal.
 
-    def get_kind(self, obj):
-        return "WR"
+    Tracking numbers come from the WarehouseReceiptLineTracking table (source of
+    truth). Carrier/description are de-duplicated and joined. Weight is summed.
+    Caller should prefetch ``lines`` and ``lines__tracking_numbers``.
+    """
+    trackings = []
+    carriers = []
+    descriptions = []
+    total_weight = Decimal('0')
+    has_weight = False
 
+    for line in wr.lines.all():
+        for t in line.tracking_numbers.all():
+            if t.tracking_number:
+                trackings.append(t.tracking_number)
+        if line.carrier and line.carrier not in carriers:
+            carriers.append(line.carrier)
+        if line.description and line.description not in descriptions:
+            descriptions.append(line.description)
+        if line.weight is not None:
+            total_weight += line.weight
+            has_weight = True
 
-class RepackSummarySerializer(serializers.Serializer):
-    id = serializers.IntegerField()
-    kind = serializers.SerializerMethodField()
-    reference = serializers.SerializerMethodField()
-    status = serializers.CharField(source='operation_type')
-    date = serializers.DateTimeField(source='performed_at')
-    description = serializers.CharField(source='notes', allow_null=True)
-    weight = serializers.SerializerMethodField()
-
-    def get_kind(self, obj):
-        return "REPACK"
-
-    def get_reference(self, obj):
-        return f"RK-{obj.id:05d}"
-
-    def get_weight(self, obj):
-        return None
+    return {
+        "tracking_number": ', '.join(trackings) if trackings else None,
+        "carrier": ', '.join(carriers) if carriers else None,
+        "description": ' | '.join(descriptions) if descriptions else None,
+        "weight": str(total_weight) if has_weight else None,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -93,36 +96,33 @@ class ClientPortalPackagesView(APIView):
                 WarehouseReceipt.objects
                 .filter(client=client)
                 .order_by('-received_at')
-                .values(
-                    'id', 'wr_number', 'tracking_number', 'carrier',
-                    'status', 'received_at', 'description',
-                    'weight_value', 'weight_unit', 'shipping_method',
-                )
+                .prefetch_related('lines', 'lines__tracking_numbers')
             )
             if from_date:
                 wr_qs = wr_qs.filter(received_at__date__gte=from_date)
             if until_date:
                 wr_qs = wr_qs.filter(received_at__date__lte=until_date)
 
-            for r in wr_qs:
-                date_str = r['received_at'].isoformat() if r['received_at'] else None
+            for wr in wr_qs:
+                rolled = _aggregate_wr_lines(wr)
+                date_str = wr.received_at.isoformat() if wr.received_at else None
                 item = {
-                    "id": r['id'],
+                    "id": wr.id,
                     "kind": "WR",
-                    "reference": r['wr_number'],
-                    "tracking_number": r['tracking_number'],
-                    "carrier": r['carrier'],
-                    "status": r['status'],
+                    "reference": wr.wr_number,
+                    "tracking_number": rolled["tracking_number"],
+                    "carrier": rolled["carrier"],
+                    "status": wr.status,
                     "date": date_str,
-                    "date_sort": r['received_at'],
-                    "description": r['description'],
-                    "weight": str(r['weight_value']) if r['weight_value'] is not None else None,
-                    "weight_unit": r['weight_unit'] or 'LB',
-                    "shipping_method": r['shipping_method'],
+                    "date_sort": wr.received_at,
+                    "description": rolled["description"],
+                    "weight": rolled["weight"],
+                    "weight_unit": "LB",
+                    "shipping_method": wr.shipping_method,
                 }
                 if search:
                     haystack = ' '.join(filter(None, [
-                        r['wr_number'], r['tracking_number'], r['description'],
+                        wr.wr_number, rolled["tracking_number"], rolled["description"],
                     ])).lower()
                     if search not in haystack:
                         continue
@@ -186,14 +186,11 @@ class ClientPortalSummaryView(APIView):
 
         client = get_client_from_request(request)
 
-        wrs = (
+        wrs = list(
             WarehouseReceipt.objects
             .filter(client=client)
             .order_by('-received_at')
-            .values(
-                'id', 'wr_number', 'status', 'received_at',
-                'description', 'weight_value',
-            )
+            .prefetch_related('lines', 'lines__tracking_numbers')
         )
 
         repacks = (
@@ -203,18 +200,18 @@ class ClientPortalSummaryView(APIView):
             .values('id', 'operation_type', 'notes', 'performed_at')
         )
 
-        wr_list = [
-            {
-                "id": r['id'],
+        wr_list = []
+        for wr in wrs:
+            rolled = _aggregate_wr_lines(wr)
+            wr_list.append({
+                "id": wr.id,
                 "kind": "WR",
-                "reference": r['wr_number'],
-                "status": r['status'],
-                "date": r['received_at'].isoformat() if r['received_at'] else None,
-                "description": r['description'],
-                "weight": str(r['weight_value']) if r['weight_value'] is not None else None,
-            }
-            for r in wrs
-        ]
+                "reference": wr.wr_number,
+                "status": wr.status,
+                "date": wr.received_at.isoformat() if wr.received_at else None,
+                "description": rolled["description"],
+                "weight": rolled["weight"],
+            })
 
         repack_list = [
             {
@@ -230,16 +227,16 @@ class ClientPortalSummaryView(APIView):
         ]
 
         # Latest WR progress (most recent by received_at)
-        latest_wr = wrs.first()
+        latest_wr = wrs[0] if wrs else None
         latest_progress = None
         if latest_wr:
-            status = latest_wr['status']
+            wr_status = latest_wr.status
             latest_progress = {
-                "reference": latest_wr['wr_number'],
-                "status": status,
+                "reference": latest_wr.wr_number,
+                "status": wr_status,
                 "stage_received": True,
-                "stage_consolidated": status in ("INACTIVE", "SHIPPED", "CANCELLED"),
-                "stage_arrived": status == "SHIPPED",
+                "stage_consolidated": wr_status in ("INACTIVE", "SHIPPED", "CANCELLED"),
+                "stage_arrived": wr_status == "SHIPPED",
             }
 
         return Response({

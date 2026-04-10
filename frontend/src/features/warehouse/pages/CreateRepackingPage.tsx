@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import "../../consolidation/pages/CreateConsolidationPage.css";
+import { listWarehouseReceipts } from "../../receiving/receiving.api";
+import { useAuth } from "../../auth/AuthContext";
 
 // ─── Shared Types ────────────────────────────────────────────────────────────
 
@@ -29,38 +31,41 @@ const INITIAL_REPACK: RepackFormData = {
     volume: 0,
 };
 
-// ─── Warehouse picker types & placeholder data ────────────────────────────────
+// ─── Warehouse picker types ───────────────────────────────────────────────
 
-type ShippingType = "All" | "Air" | "Sea" | "Ground";
-type SearchField = "all" | "warehouseNumber" | "trackingNumber" | "sender" | "destination";
+type ShippingType = "All" | "air" | "sea" | "ground";
+type SearchField = "all" | "warehouseNumber" | "sender" | "destination";
 
 type WarehouseRecord = {
-    id: string;
-    warehouseNumber: string;
-    trackingNumber: string;
-    sender: string;
-    destination: string;
-    shippingType: Exclude<ShippingType, "All">;
-    agency: string;
-    createdAt: string;
-    weight: number;
-    volume: number;
-    value: number;
+    id: number;
+    wr_number: string;
+    client_details?: { id: number; client_code: string; name: string; city?: string | null } | null;
+    recipient_name?: string | null;
+    shipping_method?: "air" | "sea" | "ground" | null;
+    associate_company?: number | null;
+    associate_company_details?: { id: number; name: string } | null;
+    received_at?: string | null;
+    allow_repacking?: boolean;
+    wr_status_display?: { type: "not_processed" | "processed" | "repacked"; reference: string | null } | null;
+    lines: Array<{
+        pieces: number;
+        weight?: string | null;
+        volume_cf?: string | null;
+        declared_value?: string | null;
+    }>;
 };
 
-const availableWarehouses: WarehouseRecord[] = [];
 const AGENCY_OPTIONS: string[] = [];
 const SEARCH_FIELD_LABELS: Record<SearchField, string> = {
     all: "All Fields",
     warehouseNumber: "Warehouse #",
-    trackingNumber: "Tracking #",
     sender: "Sender",
-    destination: "Destination",
+    destination: "Receiver",
 };
 const SHIPPING_BADGE_CLASS: Record<Exclude<ShippingType, "All">, string> = {
-    Air: "ccp-badge-air",
-    Sea: "ccp-badge-sea",
-    Ground: "ccp-badge-ground",
+    air: "ccp-badge-air",
+    sea: "ccp-badge-sea",
+    ground: "ccp-badge-ground",
 };
 
 // ─── Shared Action Button ────────────────────────────────────────────────────
@@ -302,7 +307,37 @@ function NewPackageTable({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CreateRepackingPage() {
+    const { user } = useAuth();
     const [rows, setRows] = useState<RepackFormData[]>([{ ...INITIAL_REPACK }]);
+
+    // ── Warehouse data state ──────────────────────────────────────────────────
+    const [warehouses, setWarehouses] = useState<WarehouseRecord[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [fetchError, setFetchError] = useState("");
+
+    // Fetch on mount (filtered to allow_repacking = true)
+    useEffect(() => {
+        let isMounted = true;
+        setLoading(true);
+        listWarehouseReceipts()
+            .then((res) => {
+                if (!isMounted) return;
+                const arr = Array.isArray(res) ? res : res.results;
+                setWarehouses(
+                    (arr as WarehouseRecord[]).filter((wh) => wh.allow_repacking === true)
+                );
+            })
+            .catch(() => {
+                if (!isMounted) return;
+                setFetchError("Failed to load warehouse receipts.");
+            })
+            .finally(() => {
+                if (isMounted) setLoading(false);
+            });
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     const handleChange = (index: number, field: keyof RepackFormData, value: any) => {
         setRows((prev) => {
@@ -330,7 +365,7 @@ export default function CreateRepackingPage() {
     const [agency, setAgency] = useState("All");
     const [rowsPerPage, setRowsPerPage] = useState("10");
     const [currentPage, setCurrentPage] = useState(1);
-    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
     // Reset to page 1 when filters change
     useEffect(() => {
@@ -339,9 +374,15 @@ export default function CreateRepackingPage() {
 
     // Sync value & weight from selected warehouses into the repack row
     useEffect(() => {
-        const selected = availableWarehouses.filter((wh) => selectedIds.has(wh.id));
-        const totalWeight = selected.reduce((sum, wh) => sum + wh.weight, 0);
-        const totalValue = selected.reduce((sum, wh) => sum + wh.value, 0);
+        const selected = warehouses.filter((wh) => selectedIds.has(wh.id));
+        const totalWeight = selected.reduce(
+            (sum, wh) => sum + wh.lines.reduce((s, l) => s + parseFloat(l.weight ?? "0"), 0),
+            0
+        );
+        const totalValue = selected.reduce(
+            (sum, wh) => sum + wh.lines.reduce((s, l) => s + parseFloat(l.declared_value ?? "0"), 0),
+            0
+        );
         setRows((prev) => {
             const updated = [...prev];
             updated[0] = {
@@ -351,10 +392,10 @@ export default function CreateRepackingPage() {
             };
             return updated;
         });
-    }, [selectedIds]);
+    }, [selectedIds, warehouses]);
 
     // ── Warehouse picker helpers ──────────────────────────────────────────────
-    const toggleWarehouse = (id: string) => {
+    const toggleWarehouse = (id: number) => {
         setSelectedIds((prev) => {
             const next = new Set(prev);
             if (next.has(id)) next.delete(id); else next.add(id);
@@ -362,25 +403,42 @@ export default function CreateRepackingPage() {
         });
     };
 
-    const filtered = availableWarehouses.filter((wh) => {
+    const filtered = warehouses.filter((wh) => {
+        const wrNumber = wh.wr_number ?? "";
+        const sender = wh.client_details?.name ?? "";
+        const destination = wh.recipient_name ?? "";
+        const date = wh.received_at?.slice(0, 10) ?? "";
+
+        // Search term
         if (searchTerm.trim()) {
             const term = searchTerm.trim().toLowerCase();
             if (searchField === "all") {
                 const ok =
-                    wh.warehouseNumber.toLowerCase().includes(term) ||
-                    wh.trackingNumber.toLowerCase().includes(term) ||
-                    wh.sender.toLowerCase().includes(term) ||
-                    wh.destination.toLowerCase().includes(term);
+                    wrNumber.toLowerCase().includes(term) ||
+                    sender.toLowerCase().includes(term) ||
+                    destination.toLowerCase().includes(term);
                 if (!ok) return false;
             } else {
-                const val = wh[searchField]?.toString().toLowerCase() ?? "";
-                if (!val.includes(term)) return false;
+                const fieldMap: Record<SearchField, string> = {
+                    all: "",
+                    warehouseNumber: wrNumber,
+                    sender: sender,
+                    destination: destination,
+                };
+                if (!fieldMap[searchField].toLowerCase().includes(term)) return false;
             }
         }
-        if (fromDate && wh.createdAt < fromDate) return false;
-        if (untilDate && wh.createdAt > untilDate) return false;
-        if (shippingType !== "All" && wh.shippingType !== shippingType) return false;
-        if (agency !== "All" && wh.agency !== agency) return false;
+
+        // Date range
+        if (fromDate && date < fromDate) return false;
+        if (untilDate && date > untilDate) return false;
+
+        // Shipping type
+        if (shippingType !== "All" && wh.shipping_method !== shippingType) return false;
+
+        // Agency
+        if (agency !== "All" && wh.associate_company?.toString() !== agency) return false;
+
         return true;
     });
 
@@ -550,9 +608,8 @@ export default function CreateRepackingPage() {
                         >
                             <option value="all">All Fields</option>
                             <option value="warehouseNumber">Warehouse #</option>
-                            <option value="trackingNumber">Tracking #</option>
                             <option value="sender">Sender</option>
-                            <option value="destination">Destination</option>
+                            <option value="destination">Receiver</option>
                         </select>
                     </div>
                 </div>
@@ -587,9 +644,9 @@ export default function CreateRepackingPage() {
                             onChange={(e) => setShippingType(e.target.value as ShippingType)}
                         >
                             <option value="All">All Types</option>
-                            <option value="Air">Air</option>
-                            <option value="Sea">Sea</option>
-                            <option value="Ground">Ground</option>
+                            <option value="air">Air</option>
+                            <option value="sea">Sea</option>
+                            <option value="ground">Ground</option>
                         </select>
                     </div>
                     <div className="ccp-filter-group">
@@ -609,77 +666,109 @@ export default function CreateRepackingPage() {
 
                 {/* Table */}
                 <div className="ccp-table-responsive">
-                    <table className="ccp-wh-table">
-                        <thead>
-                            <tr>
-                                <th>Warehouse #</th>
-                                <th>Tracking #</th>
-                                <th>Sender</th>
-                                <th>Destination</th>
-                                <th>Type</th>
-                                <th>Agency</th>
-                                <th>Date</th>
-                                <th>Weight</th>
-                                <th>Value ($)</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {paginated.length > 0 ? (
-                                paginated.map((wh, index) => {
-                                    const isSelected = selectedIds.has(wh.id);
-                                    return (
-                                        <tr
-                                            key={wh.id}
-                                            className={
-                                                isSelected
-                                                    ? "ccp-row-selected"
-                                                    : index % 2 === 0
-                                                        ? "ccp-row-even"
-                                                        : "ccp-row-odd"
-                                            }
-                                        >
-                                            <td><div className="ccp-wh-number">{wh.warehouseNumber}</div></td>
-                                            <td><div className="ccp-wh-tracking">{wh.trackingNumber}</div></td>
-                                            <td>{wh.sender}</td>
-                                            <td>{wh.destination}</td>
-                                            <td>
-                                                <span className={`ccp-badge ${SHIPPING_BADGE_CLASS[wh.shippingType]}`}>
-                                                    {wh.shippingType}
-                                                </span>
-                                            </td>
-                                            <td>{wh.agency}</td>
-                                            <td>{wh.createdAt}</td>
-                                            <td>{wh.weight} lb</td>
-                                            <td>${wh.value.toFixed(2)}</td>
-                                            <td>
-                                                <button
-                                                    type="button"
-                                                    className={
-                                                        isSelected
-                                                            ? "ccp-action-btn ccp-action-remove"
-                                                            : "ccp-action-btn ccp-action-add"
-                                                    }
-                                                    onClick={() => toggleWarehouse(wh.id)}
-                                                >
-                                                    {isSelected ? "Remove" : "Add"}
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    );
-                                })
-                            ) : (
+                    {loading ? (
+                        <div style={{ textAlign: "center", padding: "40px", color: "#6b7280" }}>
+                            Loading…
+                        </div>
+                    ) : fetchError ? (
+                        <div style={{ textAlign: "center", padding: "40px", color: "#dc2626" }}>
+                            {fetchError}
+                        </div>
+                    ) : (
+                        <table className="ccp-wh-table">
+                            <thead>
                                 <tr>
-                                    <td
-                                        colSpan={10}
-                                        style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}
-                                    >
-                                        No repackable warehouses found.
-                                    </td>
+                                    <th>Warehouse #</th>
+                                    <th>Sender</th>
+                                    <th>Receiver</th>
+                                    <th>Destination</th>
+                                    <th>Type</th>
+                                    <th>Agency</th>
+                                    <th>Date</th>
+                                    <th>Pcs</th>
+                                    <th>Weight</th>
+                                    <th>Volume</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
                                 </tr>
-                            )}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {paginated.length > 0 ? (
+                                    paginated.map((wh, index) => {
+                                        const isSelected = selectedIds.has(wh.id);
+                                        const totalPieces = wh.lines.reduce((sum, l) => sum + (l.pieces || 0), 0);
+                                        const totalWeight = wh.lines.reduce((sum, l) => sum + parseFloat(l.weight ?? "0"), 0);
+                                        const totalVolume = wh.lines.reduce((sum, l) => sum + parseFloat(l.volume_cf ?? "0"), 0);
+                                        return (
+                                            <tr
+                                                key={wh.id}
+                                                className={
+                                                    isSelected
+                                                        ? "ccp-row-selected"
+                                                        : index % 2 === 0
+                                                            ? "ccp-row-even"
+                                                            : "ccp-row-odd"
+                                                }
+                                            >
+                                                <td><div className="ccp-wh-number">{wh.wr_number}</div></td>
+                                                <td>{wh.client_details?.name ?? "—"}</td>
+                                                <td>{wh.recipient_name ?? "—"}</td>
+                                                <td>{wh.client_details?.city ?? "—"}</td>
+                                                <td>
+                                                    {wh.shipping_method ? (
+                                                        <span className={`ccp-badge ${SHIPPING_BADGE_CLASS[wh.shipping_method]}`}>
+                                                            {wh.shipping_method.charAt(0).toUpperCase() + wh.shipping_method.slice(1)}
+                                                        </span>
+                                                    ) : (
+                                                        <span style={{ color: "#9ca3af" }}>—</span>
+                                                    )}
+                                                </td>
+                                                <td>{wh.associate_company_details?.name ?? user?.company?.name ?? "—"}</td>
+                                                <td>{wh.received_at?.slice(0, 10) ?? "—"}</td>
+                                                <td>{totalPieces}</td>
+                                                <td>{totalWeight > 0 ? `${totalWeight.toFixed(2)} lb` : "—"}</td>
+                                                <td>{totalVolume > 0 ? `${totalVolume.toFixed(4)} ft³` : "—"}</td>
+                                                <td>
+                                                    {(() => {
+                                                        const s = wh.wr_status_display;
+                                                        if (!s || s.type === "not_processed") {
+                                                            return <span style={{ color: "#9ca3af", fontSize: "13px" }}>Not Processed</span>;
+                                                        }
+                                                        if (s.type === "processed") {
+                                                            return <span style={{ color: "#0052cc", fontWeight: 600, fontSize: "13px" }}>Processed · {s.reference}</span>;
+                                                        }
+                                                        return <span style={{ color: "#7c3aed", fontWeight: 600, fontSize: "13px" }}>Repacked · {s.reference}</span>;
+                                                    })()}
+                                                </td>
+                                                <td>
+                                                    <button
+                                                        type="button"
+                                                        className={
+                                                            isSelected
+                                                                ? "ccp-action-btn ccp-action-remove"
+                                                                : "ccp-action-btn ccp-action-add"
+                                                        }
+                                                        onClick={() => toggleWarehouse(wh.id)}
+                                                    >
+                                                        {isSelected ? "Remove" : "Add"}
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                ) : (
+                                    <tr>
+                                        <td
+                                            colSpan={12}
+                                            style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}
+                                        >
+                                            No repackable warehouses found.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    )}
                 </div>
 
                 {/* Pagination footer */}

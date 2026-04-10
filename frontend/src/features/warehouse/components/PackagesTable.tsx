@@ -137,7 +137,7 @@ export function PackagesTable({ packages, onChange, onAddRow, onRemoveRow }: Pro
                                     <input type="number" min="1" value={pkg.pieces} onChange={(e) => onChange(index, "pieces", e.target.value)} style={{ ...inputStyle, textAlign: "center" }} />
                                 </td>
                                 <td style={{ padding: "8px", textAlign: "center", fontWeight: 600, color: "#555", background: "#f8f9fa" }}>
-                                    {pkg.volume.toFixed(2)}
+                                    {(pkg.volume * Math.max(1, Number(pkg.pieces) || 1)).toFixed(2)}
                                 </td>
                                 <td style={{ padding: "8px" }}>
                                     <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>

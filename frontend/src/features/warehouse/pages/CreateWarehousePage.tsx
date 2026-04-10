@@ -14,6 +14,7 @@ import { Client } from "../../clients/types";
 import { AssociateCompany } from "../../company/associates.types";
 import { WarehouseReceiptCreate, WarehouseReceiptLineCreate } from "../../receiving/types";
 import { ApiError } from "../../../api/client";
+import { useAuth } from "../../auth/AuthContext";
 
 const INITIAL_PACKAGE: PackageFormData = {
     date: new Date().toISOString().split('T')[0],
@@ -34,6 +35,7 @@ const INITIAL_PACKAGE: PackageFormData = {
 
 export default function CreateWarehousePage() {
     const navigate = useNavigate();
+    const { user } = useAuth();
 
     // Data lists for dropdowns
     const [clients, setClients] = useState<Client[]>([]);
@@ -47,7 +49,7 @@ export default function CreateWarehousePage() {
     // Field States
     const [selectedClientId, setSelectedClientId] = useState<number | "">("");
     const [selectedRecipientId, setSelectedRecipientId] = useState<number | "">("");
-    const [allowRepacking, setAllowRepacking] = useState(false);
+    const [allowRepacking, setAllowRepacking] = useState(true);
 
     const [warehouseData, setWarehouseData] = useState<WarehouseFormData>({
         agency: "",
@@ -259,6 +261,7 @@ export default function CreateWarehousePage() {
                     <WarehouseInfoCard
                         data={warehouseData}
                         agencies={agencies}
+                        ownCompanyName={user?.company?.name}
                         onChange={handleWarehouseChange}
                     />
                 </div>

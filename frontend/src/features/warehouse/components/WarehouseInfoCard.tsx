@@ -4,10 +4,11 @@ import { AssociateCompany } from "../../company/associates.types";
 interface Props {
     data: WarehouseFormData;
     agencies: AssociateCompany[];
+    ownCompanyName?: string;
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
 }
 
-export function WarehouseInfoCard({ data, agencies, onChange }: Props) {
+export function WarehouseInfoCard({ data, agencies, ownCompanyName, onChange }: Props) {
     return (
         <div style={{
             background: "white",
@@ -40,7 +41,7 @@ export function WarehouseInfoCard({ data, agencies, onChange }: Props) {
                             background: "white"
                         }}
                     >
-                        <option value="">Select an agency...</option>
+                        <option value="">{ownCompanyName ?? "My Company"}</option>
                         {agencies.map(a => (
                             <option key={a.id} value={a.id}>{a.name}</option>
                         ))}

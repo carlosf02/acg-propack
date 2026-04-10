@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import WarehouseReceipt, WarehouseReceiptLine, WarehouseReceiptLineTracking
 from clients.api import ClientSerializer, ClientMinimalSerializer
+from company.models import AssociateCompany
 from warehouse.api import WarehouseMinimalSerializer
 from inventory.models import InventoryBalance, InventoryTransactionLine
 from shipping.models import ShipmentItem
@@ -13,6 +14,12 @@ from .trace_serializers import (
     TraceWRMinimalSerializer, TraceRepackSummarySerializer, TraceShipmentSummarySerializer
 )
 from receiving.models import RepackLink
+
+class AssociateCompanyMinimalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AssociateCompany
+        fields = ['id', 'name']
+
 
 class WRParentMinimalSerializer(serializers.ModelSerializer):
     class Meta:
@@ -78,6 +85,19 @@ class WarehouseReceiptSerializer(serializers.ModelSerializer):
     client_details = ClientMinimalSerializer(source='client', read_only=True)
     warehouse_details = WarehouseMinimalSerializer(source='received_warehouse', read_only=True)
     parent_wr_details = WRParentMinimalSerializer(source='parent_wr', read_only=True)
+    associate_company_details = AssociateCompanyMinimalSerializer(source='associate_company', read_only=True)
+    wr_status_display = serializers.SerializerMethodField()
+
+    def get_wr_status_display(self, obj):
+        # Check if this WR is part of a shipment
+        shipment_item = obj.shipment_items.first()
+        if shipment_item:
+            return {'type': 'processed', 'reference': shipment_item.shipment.shipment_number}
+        # Check if this WR was used as input in a repack
+        repack_link = obj.repack_as_input.first()
+        if repack_link:
+            return {'type': 'repacked', 'reference': f'RP-{repack_link.repack_operation.id}'}
+        return {'type': 'not_processed', 'reference': None}
 
     # Nested package lines — readable and writable
     lines = WarehouseReceiptLineSerializer(many=True, required=False)
@@ -109,6 +129,7 @@ class WarehouseReceiptSerializer(serializers.ModelSerializer):
             'notes',
             # New header fields
             'associate_company',
+            'associate_company_details',
             'shipping_method',
             'receipt_type',
             'location_note',
@@ -117,6 +138,7 @@ class WarehouseReceiptSerializer(serializers.ModelSerializer):
             'allow_repacking',
             # Nested lines
             'lines',
+            'wr_status_display',
             'created_at',
             'updated_at',
         ]
@@ -180,7 +202,12 @@ class WarehouseReceiptSerializer(serializers.ModelSerializer):
 
 
 class WarehouseReceiptViewSet(CompanyScopedViewSetMixin, viewsets.ModelViewSet):
-    queryset = WarehouseReceipt.objects.prefetch_related('lines', 'lines__tracking_numbers').all()
+    queryset = WarehouseReceipt.objects.prefetch_related(
+        'lines',
+        'lines__tracking_numbers',
+        'shipment_items__shipment',
+        'repack_as_input__repack_operation',
+    ).all()
     serializer_class = WarehouseReceiptSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['client', 'status', 'received_warehouse']
@@ -192,10 +219,18 @@ class WarehouseReceiptViewSet(CompanyScopedViewSetMixin, viewsets.ModelViewSet):
     def trace(self, request, pk=None):
         wr = self.get_object()
 
+        # Aggregate tracking numbers from the line tracking table (source of truth).
+        wr_trackings = []
+        for line in wr.lines.all():
+            for t in line.tracking_numbers.all():
+                if t.tracking_number:
+                    wr_trackings.append(t.tracking_number)
+        tracking_str = ', '.join(wr_trackings) if wr_trackings else None
+
         core_data = {
             "id": wr.id,
             "wr_number": wr.wr_number,
-            "tracking_number": wr.tracking_number,
+            "tracking_number": tracking_str,
             "status": wr.status,
             "client_details": ClientSerializer(wr.client).data,
             "received_warehouse_details": WarehouseMinimalSerializer(wr.received_warehouse).data if wr.received_warehouse else None,
@@ -210,12 +245,22 @@ class WarehouseReceiptViewSet(CompanyScopedViewSetMixin, viewsets.ModelViewSet):
         repack_lineage = {}
 
         # Is it an OUTPUT? (Find inputs pointing to this wr)
-        input_links = RepackLink.objects.select_related('input_wr').filter(output_wr=wr)
+        input_links = (
+            RepackLink.objects
+            .filter(output_wr=wr)
+            .select_related('input_wr')
+            .prefetch_related('input_wr__lines', 'input_wr__lines__tracking_numbers')
+        )
         if input_links.exists():
             repack_lineage["consolidated_from"] = [TraceWRMinimalSerializer(link.input_wr).data for link in input_links]
 
         # Is it an INPUT? (Find output it flows to)
-        output_links = RepackLink.objects.select_related('output_wr', 'repack_operation').filter(input_wr=wr)
+        output_links = (
+            RepackLink.objects
+            .filter(input_wr=wr)
+            .select_related('output_wr', 'repack_operation')
+            .prefetch_related('output_wr__lines', 'output_wr__lines__tracking_numbers')
+        )
         if output_links.exists():
             link = output_links.first()
             repack_lineage["consolidated_into"] = TraceWRMinimalSerializer(link.output_wr).data

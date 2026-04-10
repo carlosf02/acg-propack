@@ -37,7 +37,7 @@ class ClientSerializer(serializers.ModelSerializer):
 class ClientMinimalSerializer(serializers.ModelSerializer):
     class Meta:
         model = Client
-        fields = ['id', 'client_code', 'name']
+        fields = ['id', 'client_code', 'name', 'city']
 
 
 class ClientViewSet(CompanyScopedViewSetMixin, viewsets.ModelViewSet):
