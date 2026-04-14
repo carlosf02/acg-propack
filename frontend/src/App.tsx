@@ -9,6 +9,7 @@ import ListWarehousePage from "./features/warehouse/pages/ListWarehousePage";
 import CreateWarehousePage from "./features/warehouse/pages/CreateWarehousePage";
 import CreateConsolidationPage from "./features/consolidation/pages/CreateConsolidationPage";
 import ListConsolidationPage from "./features/consolidation/pages/ListConsolidationPage";
+import ConsolidationDetailPage from "./features/consolidation/pages/ConsolidationDetailPage";
 import CreateRepackingPage from "./features/warehouse/pages/CreateRepackingPage";
 import ListRepackingPage from "./features/warehouse/pages/ListRepackingPage";
 import LoginPage from "./features/auth/pages/LoginPage";
@@ -181,6 +182,7 @@ export default function App() {
         {/* Consolidations */}
         <Route path="/consolidated" element={<ListConsolidationPage />} />
         <Route path="/consolidated/new" element={<CreateConsolidationPage />} />
+        <Route path="/consolidated/:id" element={<ConsolidationDetailPage />} />
 
         <Route path="/finance/payments" element={<PaymentsPage />} />
         <Route path="/finance/payments/:id" element={<PaymentDetailPage />} />

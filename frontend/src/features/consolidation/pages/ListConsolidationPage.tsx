@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { listConsolidations } from '../consolidation.api';
 import { Consolidation } from '../types';
 import './ListConsolidationPage.css';
@@ -34,6 +34,8 @@ const SHIPPING_BADGE_CLASS: Record<Exclude<ShippingMethod, 'All'>, string> = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ListConsolidationPage() {
+    const navigate = useNavigate();
+
     // ── Data state ───────────────────────────────────────────────────────────
     const [consolidations, setConsolidations] = useState<Consolidation[]>([]);
     const [loading, setLoading] = useState(true);
@@ -295,6 +297,7 @@ export default function ListConsolidationPage() {
                                             <tr
                                                 key={con.id}
                                                 className={index % 2 === 0 ? 'lcp-row-even' : 'lcp-row-odd'}
+                                                onClick={() => navigate(`/consolidated/${con.id}`)}
                                             >
                                                 <td>
                                                     <div className="lcp-con-number">{con.reference_code || `ID: ${con.id}`}</div>

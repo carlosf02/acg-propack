@@ -37,3 +37,29 @@ export async function updateConsolidation(
 export async function deleteConsolidation(id: number): Promise<unknown> {
     return apiDelete(`${endpoints.consolidations()}${id}/`);
 }
+
+export async function addItemToConsolidation(
+    id: number,
+    warehouseReceiptId: number
+): Promise<Consolidation> {
+    return apiPost<Consolidation>(
+        `${endpoints.consolidations()}${id}/add_item/`,
+        { warehouse_receipt_id: warehouseReceiptId }
+    );
+}
+
+export async function removeItemFromConsolidation(
+    id: number,
+    warehouseReceiptId: number
+): Promise<Consolidation> {
+    return apiPost<Consolidation>(
+        `${endpoints.consolidations()}${id}/remove_item/`,
+        { warehouse_receipt_id: warehouseReceiptId }
+    );
+}
+
+export async function closeConsolidation(id: number): Promise<Consolidation> {
+    return apiPost<Consolidation>(
+        `${endpoints.consolidations()}${id}/close/`
+    );
+}

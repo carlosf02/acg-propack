@@ -242,6 +242,45 @@ class WarehouseReceiptViewSet(CompanyScopedViewSetMixin, viewsets.ModelViewSet):
                 .distinct()
             )
 
+        # Consolidation picker: active WRs and repack outputs that match the
+        # consolidation's agency, shipping method, and type, not already consumed
+        # by a repack or shipment, and not linked to any OTHER consolidation.
+        # Items already linked to THIS consolidation are kept so the UI can
+        # render them with a Remove action.
+        if params.get('eligible_for') == 'consolidation':
+            consolidation_id = params.get('consolidation_id')
+            if not consolidation_id:
+                return qs.none()
+
+            from consolidation.models import Consolidation, ConsolidationReceipt
+            company = self.get_company()
+            try:
+                consolidation = Consolidation.objects.get(
+                    pk=consolidation_id, company=company
+                )
+            except Consolidation.DoesNotExist:
+                return qs.none()
+
+            other_consolidation_wr_ids = (
+                ConsolidationReceipt.objects
+                .filter(company=company)
+                .exclude(consolidation_id=consolidation_id)
+                .values('warehouse_receipt_id')
+            )
+
+            return (
+                qs.filter(
+                    status=WRStatus.ACTIVE,
+                    associate_company_id=consolidation.associate_company_id,
+                    shipping_method=consolidation.ship_type.lower(),
+                    receipt_type=consolidation.consolidation_type,
+                )
+                .exclude(repack_as_input__isnull=False)
+                .exclude(shipment_items__isnull=False)
+                .exclude(id__in=other_consolidation_wr_ids)
+                .distinct()
+            )
+
         # Default list views hide repack outputs unless the caller asks for them
         # explicitly via ?is_repack=true.
         if 'is_repack' not in params:
