@@ -1,3 +1,7 @@
+// TODO(pricing-v2): This is the demo version of consolidation
+// pricing — volumetric/weight math only, no dollar rates, no
+// per-item billing optimization. See docs/future_work.md for
+// the full scope of what needs to change to finish this feature.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
@@ -7,11 +11,17 @@ import {
     removeItemFromConsolidation,
 } from "../consolidation.api";
 import { Consolidation } from "../types";
-import { listWarehouseReceipts } from "../../receiving/receiving.api";
+import { getWarehouseReceipt, listWarehouseReceipts } from "../../receiving/receiving.api";
 import { WarehouseReceipt } from "../../receiving/types";
 import { useAuth } from "../../auth/AuthContext";
 import { ApiError } from "../../../api/client";
 import "./ConsolidationDetailPage.css";
+
+// TODO(pricing-v2): hardcoded divisors. Real pricing uses per-admin
+// configured rates (e.g. per-associate-company or per-consolidation)
+// and may differ from industry-standard 166 / 1728.
+const PVOL_DIVISOR_AIR = 166;
+const PVOL_DIVISOR_SEA = 1728;
 
 const STATUS_BADGE_CLASS: Record<string, string> = {
     DRAFT: "cdp-status-draft",
@@ -43,6 +53,10 @@ export default function ConsolidationDetailPage() {
     const [items, setItems] = useState<WarehouseReceipt[]>([]);
     const [itemsLoading, setItemsLoading] = useState(false);
     const [itemsError, setItemsError] = useState("");
+
+    const [addedItems, setAddedItems] = useState<WarehouseReceipt[]>([]);
+    const [addedItemsLoading, setAddedItemsLoading] = useState(false);
+    const [addedItemsError, setAddedItemsError] = useState("");
 
     const [pendingItemIds, setPendingItemIds] = useState<Set<number>>(new Set());
     const [mutationError, setMutationError] = useState("");
@@ -122,6 +136,73 @@ export default function ConsolidationDetailPage() {
         () => new Set(consolidation?.warehouse_receipt_ids ?? []),
         [consolidation]
     );
+
+    // Fetch full WR details for every item in this consolidation by ID so the
+    // pricing calculation works even if an item would no longer match the
+    // eligibility query (e.g. a closed consolidation whose items later got
+    // shipped, or if any filter criterion drifted post-add).
+    const addedIdsKey = useMemo(
+        () => (consolidation?.warehouse_receipt_ids ?? []).slice().sort((a, b) => a - b).join(","),
+        [consolidation]
+    );
+    useEffect(() => {
+        if (!consolidation) return;
+        const ids = consolidation.warehouse_receipt_ids ?? [];
+        if (ids.length === 0) {
+            setAddedItems([]);
+            setAddedItemsError("");
+            setAddedItemsLoading(false);
+            return;
+        }
+        let isMounted = true;
+        setAddedItemsLoading(true);
+        setAddedItemsError("");
+        Promise.all(ids.map((wrId) => getWarehouseReceipt(wrId)))
+            .then((results) => {
+                if (!isMounted) return;
+                setAddedItems(results);
+            })
+            .catch((err) => {
+                if (!isMounted) return;
+                console.error("Failed to fetch added consolidation items:", err);
+                setAddedItemsError("Failed to load pricing details.");
+            })
+            .finally(() => {
+                if (isMounted) setAddedItemsLoading(false);
+            });
+        return () => { isMounted = false; };
+    }, [consolidation, addedIdsKey]);
+
+    // TODO(pricing-v2): real pricing uses per-admin rates for $/lb vs
+    // $/pvol-unit, and picks the more profitable option per-item to
+    // maximize admin revenue. This demo only aggregates totals and takes
+    // max(actual, pvol) across the whole consolidation.
+    const pricingTotals = useMemo(() => {
+        const shipType = consolidation?.ship_type;
+        if (shipType !== "AIR" && shipType !== "SEA") {
+            return null;
+        }
+        const divisor = shipType === "AIR" ? PVOL_DIVISOR_AIR : PVOL_DIVISOR_SEA;
+        let totalActual = 0;
+        let totalPvol = 0;
+        for (const wr of addedItems) {
+            for (const line of wr.lines ?? []) {
+                const weight = parseFloat(line.weight ?? "");
+                if (!Number.isNaN(weight)) totalActual += weight;
+                const l = parseFloat(line.length ?? "");
+                const w = parseFloat(line.width ?? "");
+                const h = parseFloat(line.height ?? "");
+                if (!Number.isNaN(l) && !Number.isNaN(w) && !Number.isNaN(h)) {
+                    totalPvol += (l * w * h) / divisor;
+                }
+            }
+        }
+        return {
+            totalActual,
+            totalPvol,
+            chargeable: Math.max(totalActual, totalPvol),
+        };
+    }, [consolidation?.ship_type, addedItems]);
 
     const handleToggleItem = useCallback(
         async (wrId: number, currentlyIn: boolean) => {
@@ -289,6 +370,44 @@ export default function ConsolidationDetailPage() {
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <div className="cdp-card">
+                <div className="cdp-section-header">
+                    <h3 className="cdp-section-title">Pricing Summary</h3>
+                </div>
+
+                {addedItemsLoading ? (
+                    <div className="cdp-items-loading">Calculating…</div>
+                ) : addedItemsError ? (
+                    <div className="cdp-items-loading cdp-state-error">{addedItemsError}</div>
+                ) : consolidation.ship_type === "GROUND" ? (
+                    // TODO(pricing-v2): ground consolidation pricing rules need
+                    // industry research + product decision before we can compute
+                    // chargeable weight here.
+                    <div className="cdp-value cdp-value-muted">
+                        N/A — pricing not yet configured for ground consolidations
+                    </div>
+                ) : pricingTotals ? (
+                    <div style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                        gap: "16px",
+                    }}>
+                        {[
+                            { label: "Total Volumetric Weight (lb)", value: pricingTotals.totalPvol.toFixed(2) },
+                            { label: "Total Actual Weight (lb)", value: pricingTotals.totalActual.toFixed(2) },
+                            { label: "Chargeable Weight (lb)", value: pricingTotals.chargeable.toFixed(2) },
+                        ].map((stat) => (
+                            <div key={stat.label} style={{ background: "white", padding: "16px", borderRadius: "8px", border: "1px solid #ddd", textAlign: "center" }}>
+                                <div style={{ fontSize: "13px", color: "#666", fontWeight: 600, marginBottom: "4px", textTransform: "uppercase" }}>{stat.label}</div>
+                                <div style={{ fontSize: "24px", color: "#1a1a1a", fontWeight: 700 }}>{stat.value}</div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="cdp-value cdp-value-muted">—</div>
+                )}
             </div>
 
             <div className="cdp-card">

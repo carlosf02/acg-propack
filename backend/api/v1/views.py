@@ -1,4 +1,9 @@
+from datetime import timedelta
+
 from django.contrib.auth import authenticate, login, logout, get_user_model
+from django.db.models import Count, Sum
+from django.db.models.functions import TruncDate
+from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -109,3 +114,104 @@ def signup_view(request):
     user = User.objects.create_user(username=username, email=email, password=password)
     login(request, user)
     return Response({"ok": True}, status=status.HTTP_201_CREATED)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def dashboard_stats(request):
+    """
+    Aggregated counts + latest WRs for the dashboard home.
+    Scoped to the requesting user's active company.
+    """
+    from company.utils import get_active_company
+    from receiving.models import WarehouseReceipt, RepackOperation
+    from consolidation.models import Consolidation, ConsolidationStatus, ShipType
+    from clients.models import Client
+    from core.models import WRStatus
+
+    company = get_active_company(request.user)
+
+    active_wr_count = (
+        WarehouseReceipt.objects
+        .filter(company=company, status=WRStatus.ACTIVE, is_repack=False)
+        .filter(shipment_items__isnull=True)
+        .count()
+    )
+
+    consol_qs = Consolidation.objects.filter(company=company)
+    consolidations = {
+        "draft": consol_qs.filter(status=ConsolidationStatus.DRAFT).count(),
+        "open": consol_qs.filter(status=ConsolidationStatus.OPEN).count(),
+        "closed": consol_qs.filter(status=ConsolidationStatus.CLOSED).count(),
+    }
+
+    active_clients = Client.objects.filter(company=company, is_active=True).count()
+
+    now = timezone.now()
+    repacks_this_month = RepackOperation.objects.filter(
+        company=company,
+        performed_at__year=now.year,
+        performed_at__month=now.month,
+    ).count()
+
+    recent_qs = (
+        WarehouseReceipt.objects
+        .filter(company=company, is_repack=False)
+        .select_related("client", "associate_company")
+        .order_by("-received_at")[:5]
+    )
+    company_name = company.name
+    recent_wrs = []
+    for wr in recent_qs:
+        total = wr.lines.aggregate(s=Sum("weight"))["s"] or 0
+        agency = wr.associate_company.name if wr.associate_company else company_name
+        recent_wrs.append({
+            "wr_number": wr.wr_number,
+            "client_name": wr.client.name if wr.client else "",
+            "agency_name": agency,
+            "total_weight": float(total),
+            "received_at": wr.received_at.isoformat() if wr.received_at else None,
+        })
+
+    # ── Charts ────────────────────────────────────────────────────────────
+    # WRs per day, last 30 calendar days (inclusive of today). Fill zeros.
+    today = timezone.localdate()
+    start_date = today - timedelta(days=29)
+    per_day_rows = (
+        WarehouseReceipt.objects
+        .filter(company=company, is_repack=False, received_at__date__gte=start_date)
+        .annotate(day=TruncDate("received_at"))
+        .values("day")
+        .annotate(count=Count("id"))
+    )
+    counts_by_day = {row["day"]: row["count"] for row in per_day_rows}
+    wrs_per_day = []
+    for i in range(30):
+        day = start_date + timedelta(days=i)
+        wrs_per_day.append({
+            "date": day.isoformat(),
+            "count": counts_by_day.get(day, 0),
+        })
+
+    ship_type_rows = (
+        Consolidation.objects
+        .filter(company=company)
+        .values("ship_type")
+        .annotate(count=Count("id"))
+    )
+    by_ship_type = {row["ship_type"]: row["count"] for row in ship_type_rows}
+    consolidations_by_ship_type = {
+        "air": by_ship_type.get(ShipType.AIR, 0),
+        "sea": by_ship_type.get(ShipType.SEA, 0),
+        "ground": by_ship_type.get(ShipType.GROUND, 0),
+    }
+
+    return Response({
+        "active_wr_count": active_wr_count,
+        "consolidations": consolidations,
+        "active_clients": active_clients,
+        "repacks_this_month": repacks_this_month,
+        "recent_wrs": recent_wrs,
+        "wrs_per_day": wrs_per_day,
+        "consolidations_by_ship_type": consolidations_by_ship_type,
+    })

@@ -17,6 +17,9 @@ export const endpoints = {
     // Auth / current user
     me: () => "/api/v1/me/",
 
+    // Dashboard
+    dashboardStats: () => "/api/v1/dashboard/stats/",
+
     // Core resources
     warehouses: () => "/api/v1/warehouses/",
     locations: () => "/api/v1/locations/",

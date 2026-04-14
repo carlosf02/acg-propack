@@ -24,6 +24,7 @@ router.register(r'repacks', RepackOperationViewSet, basename='repack')
 
 urlpatterns = [
     path('health/', views.health_check, name='health_check'),
+    path('dashboard/stats/', views.dashboard_stats, name='dashboard_stats'),
     path('auth-check/', views.auth_check, name='auth_check'),
     path('csrf/', views.csrf, name='csrf'),
     path('login/', login_view, name='login'),

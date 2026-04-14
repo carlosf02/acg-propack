@@ -1,0 +1,281 @@
+/* ── Dashboard Home ── */
+
+.dh-container {
+    animation: dh-fadeIn 0.4s ease-out;
+}
+
+@keyframes dh-fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.dh-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0 0 24px 0;
+}
+
+.dh-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.dh-card {
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02);
+    padding: 24px;
+    border: 1px solid #f3f4f6;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.dh-card-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+}
+
+.dh-state {
+    color: #6b7280;
+    font-size: 14px;
+    margin: 0;
+}
+
+.dh-state-error {
+    color: #b91c1c;
+}
+
+/* ── Stat tiles (mirrors Pricing Summary on ConsolidationDetailPage) ── */
+
+.dh-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.dh-stat {
+    background: #f9fafb;
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    text-align: center;
+    height: 110px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    box-sizing: border-box;
+}
+
+.dh-stat-label {
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+}
+
+.dh-stat-value {
+    font-size: 26px;
+    color: #111827;
+    font-weight: 700;
+}
+
+/* Stacked status list — must fit within the same tile height as sibling
+   single-number tiles. Rows are intentionally compact. */
+.dh-stat-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+    max-width: 150px;
+    margin: 0 auto;
+}
+
+.dh-stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    line-height: 1;
+}
+
+.dh-stat-row-label {
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    padding: 2px 8px;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1;
+}
+
+.dh-stat-row-label-draft {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.dh-stat-row-label-open {
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.dh-stat-row-label-closed {
+    background: #ecfdf5;
+    color: #065f46;
+}
+
+.dh-stat-row-count {
+    font-weight: 700;
+    color: #111827;
+    font-size: 20px;
+    line-height: 1;
+}
+
+/* ── Table (mirrors ListWarehousePage) ── */
+
+.dh-table-responsive {
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+}
+
+.dh-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.dh-table th {
+    background-color: #f9fafb;
+    color: #6b7280;
+    font-size: 12px;
+    text-transform: uppercase;
+    font-weight: 600;
+    padding: 14px 20px;
+    border-bottom: 1px solid #e5e7eb;
+    letter-spacing: 0.5px;
+}
+
+.dh-table td {
+    padding: 14px 20px;
+    font-size: 14px;
+    color: #374151;
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: middle;
+}
+
+.dh-row-even {
+    background-color: #ffffff;
+}
+
+.dh-row-odd {
+    background-color: #f9fafb;
+}
+
+.dh-table tr:hover {
+    background-color: #f0f7ff;
+}
+
+.dh-wr-number {
+    font-weight: 700;
+    color: #2563eb;
+    font-size: 14px;
+}
+
+.dh-empty {
+    padding: 20px;
+    color: #6b7280;
+    text-align: center;
+}
+
+.dh-chart {
+    width: 100%;
+    height: 260px;
+}
+
+/* Side-by-side row for the two charts. "2fr 1fr" gives the line chart
+   ~twice the width of the donut so all 30 points have room to breathe. */
+.dh-charts-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+}
+
+@media (max-width: 900px) {
+    .dh-charts-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Donut with legend on the right instead of Recharts' default bottom legend. */
+.dh-donut-layout {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.dh-donut-chart {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100%;
+}
+
+.dh-donut-legend {
+    flex: 0 0 auto;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 110px;
+}
+
+.dh-donut-legend-item {
+    display: grid;
+    grid-template-columns: 12px 1fr auto;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #374151;
+}
+
+.dh-donut-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+.dh-donut-name {
+    font-weight: 600;
+}
+
+.dh-donut-pct {
+    font-weight: 700;
+    color: #111827;
+    font-variant-numeric: tabular-nums;
+}
+
+.dh-chart-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b7280;
+    font-size: 14px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+}
