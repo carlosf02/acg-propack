@@ -23,6 +23,8 @@ export const endpoints = {
     clients: () => "/api/v1/clients/",
     shipments: () => "/api/v1/shipments/",
     warehouseReceipts: () => "/api/v1/wrs/",
+    repackConsolidate: () => "/api/v1/repack/consolidate/",
+    repacks: () => "/api/v1/repacks/",
 
     // Company / membership
     associateCompanies: () => "/api/v1/associate-companies/",

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '../../auth/AuthContext';
 import { listClients } from '../clients.api';
 import { Client } from '../types';
 import './ListLockerPage.css';
 
 export default function ListLockerPage() {
+    const { user } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
     const [fromDate, setFromDate] = useState('');
     const [untilDate, setUntilDate] = useState('');
@@ -204,7 +206,7 @@ export default function ListLockerPage() {
                                                 </td>
                                                 <td>{client.city || '-'}</td>
                                                 <td>{client.postal_code || '-'}</td>
-                                                <td>{client.associate_company_details?.name || '-'}</td>
+                                                <td>{client.associate_company_details?.name || user?.company?.name || '-'}</td>
                                             </tr>
                                         );
                                     })

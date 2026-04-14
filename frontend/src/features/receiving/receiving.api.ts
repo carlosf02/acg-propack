@@ -5,6 +5,8 @@ import { WarehouseReceipt, WarehouseReceiptCreate } from "./types";
 
 export async function listWarehouseReceipts(params?: {
     page?: number;
+    eligible_for?: 'repack';
+    is_repack?: boolean;
 }): Promise<Paginated<WarehouseReceipt> | WarehouseReceipt[]> {
     return apiGet<Paginated<WarehouseReceipt> | WarehouseReceipt[]>(
         endpoints.warehouseReceipts(),

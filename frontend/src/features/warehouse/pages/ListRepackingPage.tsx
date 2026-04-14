@@ -1,116 +1,107 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { listRepacks } from '../repacking.api';
+import type { Repack } from '../repacking.api';
 import './ListRepackingPage.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-type PackageType =
-    | 'All'
-    | 'box'
-    | 'envelope'
-    | 'backpack/bag'
-    | 'pallet'
-    | 'suitcase'
-    | 'plastic box'
-    | 'cooler'
-    | 'equipment';
 
 type SearchField =
     | 'all'
     | 'repackNumber'
     | 'tracking'
-    | 'description';
+    | 'client'
+    | 'notes';
 
-type RepackRecord = {
-    id: string;
-    repackNumber: string;
-    tracking: string;
-    description: string;
-    type: Exclude<PackageType, 'All'>;
-    createdAt: string; // ISO date YYYY-MM-DD
-    warehouseCount: number;
-    weight: number;   // lbs
-    volume: number;   // CF
-    value: number;    // $
-};
-
-// ─── Placeholder data (empty until API) ──────────────────────────────────────
-
-const repackData: RepackRecord[] = [];
-
-// ─── Labels & badge maps ─────────────────────────────────────────────────────
+// ─── Labels ───────────────────────────────────────────────────────────────────
 
 const SEARCH_FIELD_LABELS: Record<SearchField, string> = {
     all: 'All Fields',
     repackNumber: 'Repack #',
     tracking: 'Tracking #',
-    description: 'Description',
+    client: 'Client',
+    notes: 'Notes',
 };
-
-const TYPE_BADGE_CLASS: Record<Exclude<PackageType, 'All'>, string> = {
-    box: 'lrp-type-box',
-    envelope: 'lrp-type-envelope',
-    'backpack/bag': 'lrp-type-bag',
-    pallet: 'lrp-type-pallet',
-    suitcase: 'lrp-type-suitcase',
-    'plastic box': 'lrp-type-plasticbox',
-    cooler: 'lrp-type-cooler',
-    equipment: 'lrp-type-equipment',
-};
-
-const TYPE_OPTIONS: Exclude<PackageType, 'All'>[] = [
-    'box',
-    'envelope',
-    'backpack/bag',
-    'pallet',
-    'suitcase',
-    'plastic box',
-    'cooler',
-    'equipment',
-];
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ListRepackingPage() {
+    // ── Data state ────────────────────────────────────────────────────────────
+    const [repacks, setRepacks] = useState<Repack[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
     // ── Filter state ──────────────────────────────────────────────────────────
     const [searchTerm, setSearchTerm] = useState('');
     const [searchField, setSearchField] = useState<SearchField>('all');
     const [fromDate, setFromDate] = useState('');
     const [untilDate, setUntilDate] = useState('');
-    const [typeFilter, setTypeFilter] = useState<PackageType>('All');
 
     // ── Pagination state ──────────────────────────────────────────────────────
     const [rowsPerPage, setRowsPerPage] = useState('10');
     const [currentPage, setCurrentPage] = useState(1);
 
+    // Fetch data on mount
+    useEffect(() => {
+        let isMounted = true;
+        setLoading(true);
+        setError('');
+
+        listRepacks()
+            .then(res => {
+                if (!isMounted) return;
+                const data = Array.isArray(res) ? res : res.results;
+                setRepacks(data);
+            })
+            .catch(err => {
+                if (!isMounted) return;
+                console.error('Failed to fetch repacks:', err);
+                setError('Failed to load repacks. Please try again later.');
+            })
+            .finally(() => {
+                if (isMounted) setLoading(false);
+            });
+
+        return () => { isMounted = false; };
+    }, []);
+
     // Reset to page 1 when filters change
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, searchField, fromDate, untilDate, typeFilter, rowsPerPage]);
+    }, [searchTerm, searchField, fromDate, untilDate, rowsPerPage]);
 
     // ── Filtering logic ───────────────────────────────────────────────────────
-    const filteredRepacks = repackData.filter((rp) => {
-        // Search term
+    const rowRepackNumber = (rp: Repack) => rp.output_wr_number || `#${rp.id}`;
+
+    const filteredRepacks = repacks.filter((rp) => {
         if (searchTerm.trim()) {
             const term = searchTerm.trim().toLowerCase();
+            const repackNumber = rowRepackNumber(rp).toLowerCase();
+            const tracking = (rp.output_tracking_number || '').toLowerCase();
+            const client = (rp.client_name || '').toLowerCase();
+            const notes = (rp.notes || '').toLowerCase();
+
             if (searchField === 'all') {
                 const matchesAny =
-                    rp.repackNumber.toLowerCase().includes(term) ||
-                    rp.tracking.toLowerCase().includes(term) ||
-                    rp.description.toLowerCase().includes(term);
+                    repackNumber.includes(term) ||
+                    tracking.includes(term) ||
+                    client.includes(term) ||
+                    notes.includes(term);
                 if (!matchesAny) return false;
             } else {
-                const fieldValue = rp[searchField]?.toString().toLowerCase() ?? '';
+                const fieldValue =
+                    searchField === 'repackNumber' ? repackNumber :
+                    searchField === 'tracking' ? tracking :
+                    searchField === 'client' ? client :
+                    notes;
                 if (!fieldValue.includes(term)) return false;
             }
         }
 
-        // Date range
-        if (fromDate && rp.createdAt < fromDate) return false;
-        if (untilDate && rp.createdAt > untilDate) return false;
-
-        // Package type
-        if (typeFilter !== 'All' && rp.type !== typeFilter) return false;
+        // Date range (compare on created_at YYYY-MM-DD)
+        const rpDate = rp.created_at ? new Date(rp.created_at).toISOString().split('T')[0] : '';
+        if (fromDate && rpDate && rpDate < fromDate) return false;
+        if (untilDate && rpDate && rpDate > untilDate) return false;
 
         return true;
     });
@@ -149,11 +140,10 @@ export default function ListRepackingPage() {
             <div className="lrp-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                     <h2>Repacking</h2>
-                    {/* Stats badge */}
                     <div className="lrp-stats-card">
                         <div className="lrp-stat-item">
                             <span className="lrp-stat-label">Total:</span>
-                            <span className="lrp-stat-value">{repackData.length}</span>
+                            <span className="lrp-stat-value">{repacks.length}</span>
                         </div>
                         <div className="lrp-stat-divider" />
                         <div className="lrp-stat-item">
@@ -192,7 +182,8 @@ export default function ListRepackingPage() {
                             <option value="all">All Fields</option>
                             <option value="repackNumber">Repack #</option>
                             <option value="tracking">Tracking #</option>
-                            <option value="description">Description</option>
+                            <option value="client">Client</option>
+                            <option value="notes">Notes</option>
                         </select>
                     </div>
                 </div>
@@ -201,7 +192,6 @@ export default function ListRepackingPage() {
 
                 {/* ── Secondary filters row ── */}
                 <div className="lrp-filters-row">
-                    {/* From date */}
                     <div className="lrp-filter-group">
                         <label className="lrp-label">From</label>
                         <input
@@ -212,7 +202,6 @@ export default function ListRepackingPage() {
                         />
                     </div>
 
-                    {/* Until date */}
                     <div className="lrp-filter-group">
                         <label className="lrp-label">Until</label>
                         <input
@@ -222,81 +211,69 @@ export default function ListRepackingPage() {
                             onChange={(e) => setUntilDate(e.target.value)}
                         />
                     </div>
-
-                    {/* Package type */}
-                    <div className="lrp-filter-group">
-                        <label className="lrp-label">Package Type</label>
-                        <select
-                            className="lrp-select"
-                            value={typeFilter}
-                            onChange={(e) => setTypeFilter(e.target.value as PackageType)}
-                        >
-                            <option value="All">All Types</option>
-                            {TYPE_OPTIONS.map((t) => (
-                                <option key={t} value={t} style={{ textTransform: 'capitalize' }}>
-                                    {t.charAt(0).toUpperCase() + t.slice(1)}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
                 </div>
 
                 {/* ── Table ── */}
                 <div className="lrp-table-responsive">
-                    <table className="lrp-table">
-                        <thead>
-                            <tr>
-                                <th>Repack #</th>
-                                <th>Tracking #</th>
-                                <th>Description</th>
-                                <th>Type</th>
-                                <th>Date</th>
-                                <th>Warehouses</th>
-                                <th>Weight (lb)</th>
-                                <th>Volume (CF)</th>
-                                <th>Value ($)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {paginated.length > 0 ? (
-                                paginated.map((rp, index) => (
-                                    <tr
-                                        key={rp.id}
-                                        className={index % 2 === 0 ? 'lrp-row-even' : 'lrp-row-odd'}
-                                    >
-                                        <td>
-                                            <div className="lrp-rp-number">{rp.repackNumber}</div>
-                                        </td>
-                                        <td>
-                                            <div className="lrp-tracking">{rp.tracking}</div>
-                                        </td>
-                                        <td>{rp.description}</td>
-                                        <td>
-                                            <span className={`lrp-type-badge ${TYPE_BADGE_CLASS[rp.type]}`}>
-                                                {rp.type}
-                                            </span>
-                                        </td>
-                                        <td>{rp.createdAt}</td>
-                                        <td>
-                                            <span className="lrp-wh-count">{rp.warehouseCount}</span>
-                                        </td>
-                                        <td>{rp.weight.toFixed(2)}</td>
-                                        <td>{rp.volume.toFixed(2)}</td>
-                                        <td>${rp.value.toFixed(2)}</td>
-                                    </tr>
-                                ))
-                            ) : (
+                    {loading ? (
+                        <div style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>Loading repacks...</div>
+                    ) : error ? (
+                        <div style={{ padding: '40px', textAlign: 'center', color: '#dc2626' }}>{error}</div>
+                    ) : (
+                        <table className="lrp-table">
+                            <thead>
                                 <tr>
-                                    <td
-                                        colSpan={9}
-                                        style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}
-                                    >
-                                        No repackings found.
-                                    </td>
+                                    <th>Repack #</th>
+                                    <th>Tracking #</th>
+                                    <th>Client</th>
+                                    <th>Input WRs</th>
+                                    <th>Date</th>
+                                    <th>Notes</th>
                                 </tr>
-                            )}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {paginated.length > 0 ? (
+                                    paginated.map((rp, index) => {
+                                        const createdDate = rp.created_at ? new Date(rp.created_at).toLocaleDateString() : 'N/A';
+                                        const inputWrs = rp.input_wr_numbers?.length
+                                            ? rp.input_wr_numbers.join(', ')
+                                            : `${rp.input_wr_count}`;
+
+                                        return (
+                                            <tr
+                                                key={rp.id}
+                                                className={index % 2 === 0 ? 'lrp-row-even' : 'lrp-row-odd'}
+                                            >
+                                                <td>
+                                                    <div className="lrp-rp-number">{rowRepackNumber(rp)}</div>
+                                                </td>
+                                                <td>
+                                                    <div className="lrp-tracking">{rp.output_tracking_number || '-'}</div>
+                                                </td>
+                                                <td>{rp.client_name || rp.client_code || '-'}</td>
+                                                <td>
+                                                    <span className="lrp-wh-count" title={inputWrs}>
+                                                        {rp.input_wr_count}
+                                                    </span>
+                                                </td>
+                                                <td>{createdDate}</td>
+                                                <td>{rp.notes || '-'}</td>
+                                            </tr>
+                                        );
+                                    })
+                                ) : (
+                                    <tr>
+                                        <td
+                                            colSpan={6}
+                                            style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}
+                                        >
+                                            No repackings found.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    )}
                 </div>
 
                 {/* ── Pagination footer ── */}
@@ -320,14 +297,14 @@ export default function ListRepackingPage() {
                         <button
                             className="lrp-page-btn lrp-page-arrow"
                             onClick={() => handlePageChange(1)}
-                            disabled={currentPage === 1}
+                            disabled={currentPage === 1 || loading}
                         >
                             &laquo;
                         </button>
                         <button
                             className="lrp-page-btn lrp-page-arrow"
                             onClick={() => handlePageChange(currentPage - 1)}
-                            disabled={currentPage === 1}
+                            disabled={currentPage === 1 || loading}
                         >
                             &lsaquo;
                         </button>
@@ -335,14 +312,14 @@ export default function ListRepackingPage() {
                         <button
                             className="lrp-page-btn lrp-page-arrow"
                             onClick={() => handlePageChange(currentPage + 1)}
-                            disabled={currentPage === totalPages}
+                            disabled={currentPage === totalPages || loading}
                         >
                             &rsaquo;
                         </button>
                         <button
                             className="lrp-page-btn lrp-page-arrow"
                             onClick={() => handlePageChange(totalPages)}
-                            disabled={currentPage === totalPages}
+                            disabled={currentPage === totalPages || loading}
                         >
                             &raquo;
                         </button>

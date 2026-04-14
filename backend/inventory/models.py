@@ -11,7 +11,7 @@ class InventoryBalance(TimeStampedModel):
     company = models.ForeignKey('company.Company', on_delete=models.PROTECT, related_name="inventory_balances")
     client = models.ForeignKey(Client, on_delete=models.PROTECT, related_name="inventory_balances")
     warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, related_name="inventory_balances")
-    location = models.ForeignKey(StorageLocation, on_delete=models.PROTECT, related_name="inventory_balances")
+    location = models.ForeignKey(StorageLocation, on_delete=models.PROTECT, null=True, blank=True, related_name="inventory_balances")
     wr = models.ForeignKey(WarehouseReceipt, on_delete=models.PROTECT, related_name="inventory_balances")
     
     on_hand_qty = models.PositiveIntegerField(default=1)
@@ -31,7 +31,8 @@ class InventoryBalance(TimeStampedModel):
         ]
 
     def __str__(self):
-        return f"{self.wr.wr_number} @ {self.location.code} (Qty: {self.on_hand_qty})"
+        loc_code = self.location.code if self.location else "—"
+        return f"{self.wr.wr_number} @ {loc_code} (Qty: {self.on_hand_qty})"
 
 
 class InventoryTransaction(TimeStampedModel):

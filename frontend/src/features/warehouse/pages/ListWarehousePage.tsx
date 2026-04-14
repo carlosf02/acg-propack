@@ -330,14 +330,34 @@ export default function ListWarehousePage() {
                                                 <td>{totalVolume > 0 ? `${totalVolume.toFixed(4)} ft³` : '—'}</td>
                                                 <td>
                                                     {(() => {
+                                                        const wrapperStyle: React.CSSProperties = {
+                                                            display: 'flex',
+                                                            flexDirection: 'column',
+                                                            justifyContent: 'center',
+                                                            minHeight: '32px',
+                                                            lineHeight: 1.2,
+                                                        };
                                                         const s = wh.wr_status_display;
                                                         if (!s || s.type === 'not_processed') {
-                                                            return <span style={{ color: '#9ca3af', fontSize: '13px' }}>Not Processed</span>;
+                                                            return (
+                                                                <div style={wrapperStyle}>
+                                                                    <span style={{ color: '#9ca3af', fontSize: '13px' }}>Not Processed</span>
+                                                                </div>
+                                                            );
                                                         }
                                                         if (s.type === 'processed') {
-                                                            return <span style={{ color: '#0052cc', fontWeight: 600, fontSize: '13px' }}>Processed · {s.reference}</span>;
+                                                            return (
+                                                                <div style={wrapperStyle}>
+                                                                    <span style={{ color: '#0052cc', fontWeight: 600, fontSize: '13px' }}>Processed · {s.reference}</span>
+                                                                </div>
+                                                            );
                                                         }
-                                                        return <span style={{ color: '#7c3aed', fontWeight: 600, fontSize: '13px' }}>Repacked · {s.reference}</span>;
+                                                        return (
+                                                            <div style={wrapperStyle}>
+                                                                <span style={{ color: '#7c3aed', fontWeight: 600, fontSize: '13px' }}>Repacked</span>
+                                                                <span style={{ color: '#9ca3af', fontSize: '11px' }}>{s.reference}</span>
+                                                            </div>
+                                                        );
                                                     })()}
                                                 </td>
                                             </tr>

@@ -3,6 +3,7 @@ from core.mixins import CompanyScopedViewSetMixin
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
+from core.models import WRStatus
 from .models import WarehouseReceipt, WarehouseReceiptLine, WarehouseReceiptLineTracking
 from clients.api import ClientSerializer, ClientMinimalSerializer
 from company.models import AssociateCompany
@@ -96,7 +97,7 @@ class WarehouseReceiptSerializer(serializers.ModelSerializer):
         # Check if this WR was used as input in a repack
         repack_link = obj.repack_as_input.first()
         if repack_link:
-            return {'type': 'repacked', 'reference': f'RP-{repack_link.repack_operation.id}'}
+            return {'type': 'repacked', 'reference': repack_link.output_wr.wr_number}
         return {'type': 'not_processed', 'reference': None}
 
     # Nested package lines — readable and writable
@@ -136,13 +137,14 @@ class WarehouseReceiptSerializer(serializers.ModelSerializer):
             'recipient_name',
             'recipient_address',
             'allow_repacking',
+            'is_repack',
             # Nested lines
             'lines',
             'wr_status_display',
             'created_at',
             'updated_at',
         ]
-        read_only_fields = ['id', 'wr_number', 'company', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'wr_number', 'company', 'is_repack', 'created_at', 'updated_at']
 
     def validate(self, data):
         # Validate dimensions and weights (legacy single-WR fields)
@@ -154,6 +156,13 @@ class WarehouseReceiptSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         lines_data = validated_data.pop('lines', [])
+        if not validated_data.get('received_warehouse'):
+            company = validated_data.get('company')
+            if company is not None:
+                from warehouse.models import Warehouse
+                active_warehouses = list(Warehouse.objects.filter(company=company, is_active=True)[:2])
+                if len(active_warehouses) == 1:
+                    validated_data['received_warehouse'] = active_warehouses[0]
         receipt = WarehouseReceipt.objects.create(**validated_data)
         for line_data in lines_data:
             tracking_data = line_data.pop('tracking_numbers', [])
@@ -206,14 +215,38 @@ class WarehouseReceiptViewSet(CompanyScopedViewSetMixin, viewsets.ModelViewSet):
         'lines',
         'lines__tracking_numbers',
         'shipment_items__shipment',
-        'repack_as_input__repack_operation',
+        'repack_as_input__output_wr',
     ).all()
     serializer_class = WarehouseReceiptSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['client', 'status', 'received_warehouse']
+    filterset_fields = ['client', 'status', 'received_warehouse', 'is_repack']
     search_fields = ['wr_number', 'tracking_number']
     ordering_fields = ['received_at', 'wr_number', 'created_at']
     ordering = ['-received_at']
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        params = self.request.query_params
+
+        # Repack picker: active, un-consumed, repack-allowed, non-repack WRs only.
+        if params.get('eligible_for') == 'repack':
+            return (
+                qs.filter(
+                    status=WRStatus.ACTIVE,
+                    is_repack=False,
+                    allow_repacking=True,
+                )
+                .exclude(repack_as_input__isnull=False)
+                .exclude(shipment_items__isnull=False)
+                .exclude(consolidation_links__isnull=False)
+                .distinct()
+            )
+
+        # Default list views hide repack outputs unless the caller asks for them
+        # explicitly via ?is_repack=true.
+        if 'is_repack' not in params:
+            qs = qs.filter(is_repack=False)
+        return qs
 
     @action(detail=True, methods=['get'], url_path='trace')
     def trace(self, request, pk=None):

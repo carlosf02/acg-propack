@@ -12,7 +12,7 @@ class TraceWarehouseSerializer(serializers.Serializer):
 
 class TraceBalanceSerializer(serializers.Serializer):
     warehouse_details = TraceWarehouseSerializer(source='warehouse')
-    location_details = TraceLocationSerializer(source='location')
+    location_details = TraceLocationSerializer(source='location', allow_null=True)
     on_hand_qty = serializers.IntegerField()
     reserved_qty = serializers.IntegerField()
     updated_at = serializers.DateTimeField()

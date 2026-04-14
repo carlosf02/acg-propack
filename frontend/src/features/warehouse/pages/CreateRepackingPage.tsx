@@ -1,7 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import "../../consolidation/pages/CreateConsolidationPage.css";
 import { listWarehouseReceipts } from "../../receiving/receiving.api";
 import { useAuth } from "../../auth/AuthContext";
+import { TotalsSummary } from "../components/TotalsSummary";
+import { createRepack } from "../repacking.api";
+import type { RepackOutput, RepackOutputLine } from "../repacking.api";
+import { ApiError } from "../../../api/client";
 
 // ─── Shared Types ────────────────────────────────────────────────────────────
 
@@ -44,6 +49,7 @@ type WarehouseRecord = {
     shipping_method?: "air" | "sea" | "ground" | null;
     associate_company?: number | null;
     associate_company_details?: { id: number; name: string } | null;
+    received_warehouse?: number | null;
     received_at?: string | null;
     allow_repacking?: boolean;
     wr_status_display?: { type: "not_processed" | "processed" | "repacked"; reference: string | null } | null;
@@ -54,6 +60,38 @@ type WarehouseRecord = {
         declared_value?: string | null;
     }>;
 };
+
+type RepackConstraint = {
+    agencyId: number | null;
+    shippingMethod: string | null;
+    destination: string | null;
+    senderId: number | null;
+    receiver: string | null;
+};
+
+const normalizeText = (s: string | null | undefined): string | null => {
+    const trimmed = (s ?? "").trim().toLowerCase();
+    return trimmed.length > 0 ? trimmed : null;
+};
+
+function getRepackConstraint(wh: WarehouseRecord): RepackConstraint {
+    return {
+        agencyId: wh.associate_company ?? null,
+        shippingMethod: wh.shipping_method ?? null,
+        destination: normalizeText(wh.client_details?.city),
+        senderId: wh.client_details?.id ?? null,
+        receiver: normalizeText(wh.recipient_name),
+    };
+}
+
+function getMismatchReason(wh: WarehouseRecord, c: RepackConstraint): string | null {
+    if ((wh.client_details?.id ?? null) !== c.senderId) return "Different sender";
+    if (normalizeText(wh.recipient_name) !== c.receiver) return "Different receiver";
+    if (normalizeText(wh.client_details?.city) !== c.destination) return "Different destination";
+    if ((wh.shipping_method ?? null) !== c.shippingMethod) return "Different type";
+    if ((wh.associate_company ?? null) !== c.agencyId) return "Different agency";
+    return null;
+}
 
 const AGENCY_OPTIONS: string[] = [];
 const SEARCH_FIELD_LABELS: Record<SearchField, string> = {
@@ -315,17 +353,17 @@ export default function CreateRepackingPage() {
     const [loading, setLoading] = useState(false);
     const [fetchError, setFetchError] = useState("");
 
-    // Fetch on mount (filtered to allow_repacking = true)
+    // Fetch on mount. Server-side filter returns only repack-eligible WRs:
+    // ACTIVE, not a repack output, allow_repacking, and not already consumed
+    // by a repack/shipment/consolidation.
     useEffect(() => {
         let isMounted = true;
         setLoading(true);
-        listWarehouseReceipts()
+        listWarehouseReceipts({ eligible_for: 'repack' })
             .then((res) => {
                 if (!isMounted) return;
                 const arr = Array.isArray(res) ? res : res.results;
-                setWarehouses(
-                    (arr as WarehouseRecord[]).filter((wh) => wh.allow_repacking === true)
-                );
+                setWarehouses(arr as WarehouseRecord[]);
             })
             .catch(() => {
                 if (!isMounted) return;
@@ -402,6 +440,92 @@ export default function CreateRepackingPage() {
             return next;
         });
     };
+
+    const constraint = useMemo(() => {
+        if (selectedIds.size === 0) return null;
+        const first = warehouses.find((w) => selectedIds.has(w.id));
+        return first ? getRepackConstraint(first) : null;
+    }, [selectedIds, warehouses]);
+
+    // ── Save state ────────────────────────────────────────────────────────────
+    const navigate = useNavigate();
+    const [repackNotes, setRepackNotes] = useState("");
+    const [locationNote, setLocationNote] = useState("");
+    const [saving, setSaving] = useState(false);
+    const [saveError, setSaveError] = useState<string | null>(null);
+
+    async function handleSave() {
+        setSaveError(null);
+
+        if (selectedIds.size < 2) {
+            setSaveError("Select at least 2 warehouse receipts to repack.");
+            return;
+        }
+        const firstSelected = warehouses.find((w) => selectedIds.has(w.id));
+        const clientId = firstSelected?.client_details?.id;
+        if (!clientId) {
+            setSaveError("Could not determine the client from the selected WRs.");
+            return;
+        }
+
+        const outputRow = rows[0];
+        const trackingTrimmed = outputRow.tracking.trim();
+        const descriptionTrimmed = outputRow.description.trim();
+        const locationNoteTrimmed = locationNote.trim();
+        const notesTrimmed = repackNotes.trim();
+
+        const numberOrUndef = (v: number | ""): number | undefined =>
+            v === "" || Number.isNaN(Number(v)) ? undefined : Number(v);
+
+        const outputLines: RepackOutputLine[] = rows
+            .map((r) => {
+                const trackingRow = r.tracking.trim();
+                const descriptionRow = r.description.trim();
+                const line: RepackOutputLine = {};
+                if (r.date) line.date = r.date;
+                if (r.type) line.package_type = r.type;
+                if (trackingRow) line.tracking_number = trackingRow;
+                if (descriptionRow) line.description = descriptionRow;
+                const declaredValue = numberOrUndef(r.value);
+                if (declaredValue !== undefined) line.declared_value = declaredValue;
+                const length = numberOrUndef(r.length);
+                if (length !== undefined) line.length = length;
+                const width = numberOrUndef(r.width);
+                if (width !== undefined) line.width = width;
+                const height = numberOrUndef(r.height);
+                if (height !== undefined) line.height = height;
+                const weight = numberOrUndef(r.weight);
+                if (weight !== undefined) line.weight = weight;
+                if (r.volume > 0) line.volume_cf = Number(r.volume.toFixed(4));
+                return line;
+            })
+            .filter((line) => Object.keys(line).length > 0);
+
+        const output: RepackOutput = {};
+        if (trackingTrimmed) output.tracking_number = trackingTrimmed;
+        if (descriptionTrimmed) output.description = descriptionTrimmed;
+        if (locationNoteTrimmed) output.location_note = locationNoteTrimmed;
+        if (outputLines.length > 0) output.lines = outputLines;
+
+        setSaving(true);
+        try {
+            const result = await createRepack({
+                client: clientId,
+                input_wrs: Array.from(selectedIds),
+                ...(Object.keys(output).length > 0 ? { output } : {}),
+                ...(notesTrimmed ? { notes: notesTrimmed } : {}),
+            });
+            navigate(`/repacking`, { state: { createdRepackId: result.repack_operation_id } });
+        } catch (err) {
+            if (err instanceof ApiError) {
+                setSaveError(err.message || "Failed to save repack.");
+            } else {
+                setSaveError("Unexpected error while saving repack.");
+            }
+        } finally {
+            setSaving(false);
+        }
+    }
 
     const filtered = warehouses.filter((wh) => {
         const wrNumber = wh.wr_number ?? "";
@@ -482,32 +606,53 @@ export default function CreateRepackingPage() {
                 <h1 style={{ margin: 0, fontSize: "28px", color: "#1a1a1a" }}>
                     Create Repack
                 </h1>
-                <div style={{ display: "flex", gap: "12px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    {saveError && (
+                        <span
+                            role="alert"
+                            style={{
+                                color: "#b91c1c",
+                                fontSize: "13px",
+                                fontWeight: 500,
+                                marginRight: "4px",
+                            }}
+                        >
+                            {saveError}
+                        </span>
+                    )}
                     <button
+                        type="button"
+                        onClick={() => navigate("/repacking")}
+                        disabled={saving}
                         style={{
                             padding: "10px 20px",
                             background: "white",
                             border: "1px solid #ddd",
                             borderRadius: "6px",
-                            cursor: "pointer",
+                            cursor: saving ? "not-allowed" : "pointer",
                             fontWeight: 600,
                             color: "#555",
+                            opacity: saving ? 0.6 : 1,
                         }}
                     >
                         Cancel
                     </button>
                     <button
+                        type="button"
+                        onClick={handleSave}
+                        disabled={saving}
                         style={{
                             padding: "10px 24px",
                             background: "#0052cc",
                             border: "none",
                             borderRadius: "6px",
                             color: "white",
-                            cursor: "pointer",
+                            cursor: saving ? "not-allowed" : "pointer",
                             fontWeight: 600,
+                            opacity: saving ? 0.6 : 1,
                         }}
                     >
-                        Save Repack
+                        {saving ? "Saving…" : "Save Repack"}
                     </button>
                 </div>
             </div>
@@ -538,53 +683,75 @@ export default function CreateRepackingPage() {
                     </h2>
                 </div>
 
+                <div
+                    style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: "16px",
+                        marginBottom: "20px",
+                    }}
+                >
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                        <label style={{ fontSize: "13px", fontWeight: 600, color: "#333" }}>
+                            Notes
+                        </label>
+                        <textarea
+                            placeholder="Any notes about this repack…"
+                            value={repackNotes}
+                            onChange={(e) => setRepackNotes(e.target.value)}
+                            rows={2}
+                            style={{
+                                padding: "8px 10px",
+                                border: "1px solid #ddd",
+                                borderRadius: "6px",
+                                fontSize: "13px",
+                                fontFamily: "inherit",
+                                resize: "vertical",
+                            }}
+                        />
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                        <label style={{ fontSize: "13px", fontWeight: 600, color: "#333" }}>
+                            Storage Location
+                        </label>
+                        <input
+                            type="text"
+                            placeholder="e.g. Back shelf, row C"
+                            value={locationNote}
+                            onChange={(e) => setLocationNote(e.target.value)}
+                            maxLength={255}
+                            style={{
+                                padding: "8px 10px",
+                                border: "1px solid #ddd",
+                                borderRadius: "6px",
+                                fontSize: "13px",
+                            }}
+                        />
+                    </div>
+                </div>
+
                 <NewPackageTable
                     rows={rows}
                     onChange={handleChange}
                 />
 
-                {/* Totals bar */}
-                <div
-                    style={{
-                        display: "flex",
-                        justifyContent: "flex-end",
-                        gap: "24px",
-                        marginTop: "16px",
-                        paddingTop: "12px",
-                        borderTop: "1px solid #eee",
-                        fontSize: "13px",
-                        color: "#555",
-                        fontWeight: 600,
-                    }}
-                >
-
-                    <span>
-                        Total Weight:{" "}
-                        <strong style={{ color: "#1a1a1a" }}>
-                            {rows.reduce((sum, r) => sum + (Number(r.weight) || 0), 0).toFixed(2)}
-                        </strong>
-                    </span>
-                    <span>
-                        Total Vol (CF):{" "}
-                        <strong style={{ color: "#1a1a1a" }}>
-                            {rows.reduce((sum, r) => sum + r.volume, 0).toFixed(2)}
-                        </strong>
-                    </span>
-                    <span>
-                        Total Value ($):{" "}
-                        <strong style={{ color: "#1a1a1a" }}>
-                            {rows.reduce((sum, r) => sum + (Number(r.value) || 0), 0).toFixed(2)}
-                        </strong>
-                    </span>
-                </div>
+                <TotalsSummary items={[
+                    { label: "Total Weight", value: rows.reduce((sum, r) => sum + (Number(r.weight) || 0), 0).toFixed(2) },
+                    { label: "Total Vol (CF)", value: rows.reduce((sum, r) => sum + r.volume, 0).toFixed(2) },
+                    { label: "Total Value ($)", value: `$${rows.reduce((sum, r) => sum + (Number(r.value) || 0), 0).toFixed(2)}` },
+                ]} />
             </div>
             {/* ── Section 2: Add Warehouses ── */}
             <div className="ccp-card">
                 <div className="ccp-section-header">
                     <h3 className="ccp-section-title">Add Warehouses</h3>
-                    {selectedIds.size > 0 && (
-                        <span className="ccp-selected-badge">{selectedIds.size} selected</span>
-                    )}
+                    <span
+                        className="ccp-selected-badge"
+                        style={{ visibility: selectedIds.size > 0 ? "visible" : "hidden" }}
+                        aria-hidden={selectedIds.size === 0}
+                    >
+                        {selectedIds.size} selected
+                    </span>
                 </div>
 
                 {/* Search row */}
@@ -696,6 +863,9 @@ export default function CreateRepackingPage() {
                                 {paginated.length > 0 ? (
                                     paginated.map((wh, index) => {
                                         const isSelected = selectedIds.has(wh.id);
+                                        const mismatchReason = constraint && !isSelected
+                                            ? getMismatchReason(wh, constraint)
+                                            : null;
                                         const totalPieces = wh.lines.reduce((sum, l) => sum + (l.pieces || 0), 0);
                                         const totalWeight = wh.lines.reduce((sum, l) => sum + parseFloat(l.weight ?? "0"), 0);
                                         const totalVolume = wh.lines.reduce((sum, l) => sum + parseFloat(l.volume_cf ?? "0"), 0);
@@ -709,6 +879,7 @@ export default function CreateRepackingPage() {
                                                             ? "ccp-row-even"
                                                             : "ccp-row-odd"
                                                 }
+                                                style={{ opacity: mismatchReason ? 0.5 : 1 }}
                                             >
                                                 <td><div className="ccp-wh-number">{wh.wr_number}</div></td>
                                                 <td>{wh.client_details?.name ?? "—"}</td>
@@ -741,17 +912,45 @@ export default function CreateRepackingPage() {
                                                     })()}
                                                 </td>
                                                 <td>
-                                                    <button
-                                                        type="button"
-                                                        className={
-                                                            isSelected
-                                                                ? "ccp-action-btn ccp-action-remove"
-                                                                : "ccp-action-btn ccp-action-add"
-                                                        }
-                                                        onClick={() => toggleWarehouse(wh.id)}
-                                                    >
-                                                        {isSelected ? "Remove" : "Add"}
-                                                    </button>
+                                                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                                                        <button
+                                                            type="button"
+                                                            aria-label={isSelected ? "Remove warehouse" : "Add warehouse"}
+                                                            title={isSelected ? "Remove warehouse" : (mismatchReason ?? "Add warehouse")}
+                                                            onClick={() => toggleWarehouse(wh.id)}
+                                                            disabled={!!mismatchReason}
+                                                            style={{
+                                                                width: 32,
+                                                                height: 32,
+                                                                display: "inline-flex",
+                                                                alignItems: "center",
+                                                                justifyContent: "center",
+                                                                borderRadius: 6,
+                                                                border: "none",
+                                                                cursor: mismatchReason ? "not-allowed" : "pointer",
+                                                                fontSize: 20,
+                                                                fontWeight: 700,
+                                                                lineHeight: 1,
+                                                                color: "white",
+                                                                background: isSelected ? "#dc2626" : "#16a34a",
+                                                            }}
+                                                        >
+                                                            {isSelected ? "−" : "+"}
+                                                        </button>
+                                                        <div
+                                                            style={{
+                                                                fontSize: 11,
+                                                                lineHeight: "14px",
+                                                                height: 14,
+                                                                color: "#dc2626",
+                                                                whiteSpace: "nowrap",
+                                                                visibility: mismatchReason ? "visible" : "hidden",
+                                                            }}
+                                                            aria-hidden={!mismatchReason}
+                                                        >
+                                                            {mismatchReason ?? "—"}
+                                                        </div>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         );

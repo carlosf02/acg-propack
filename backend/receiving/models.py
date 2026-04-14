@@ -67,6 +67,7 @@ class WarehouseReceipt(TimeStampedModel):
     recipient_name = models.CharField(max_length=255, null=True, blank=True)
     recipient_address = models.TextField(null=True, blank=True)
     allow_repacking = models.BooleanField(default=False)
+    is_repack = models.BooleanField(default=False, db_index=True)
 
     class Meta:
         indexes = [
@@ -83,10 +84,27 @@ class WarehouseReceipt(TimeStampedModel):
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        # Auto-generate wr_number after first insert if not provided
+        # Auto-generate wr_number after first insert if not provided.
+        # Repack outputs get their own per-company sequence: REPACK-<company>-<seq>.
+        # Regular receipts use the shared PK as the sequence: WR-<company>-<pk>.
         if not self.wr_number:
             company_id = self.company_id or 0
-            self.wr_number = f"WR-{company_id}-{self.pk:06d}"
+            if self.is_repack:
+                last = (
+                    WarehouseReceipt.objects
+                    .filter(company_id=self.company_id, is_repack=True)
+                    .exclude(pk=self.pk)
+                    .order_by('-pk')
+                    .values_list('wr_number', flat=True)
+                    .first()
+                )
+                try:
+                    seq = (int(last.rsplit('-', 1)[-1]) + 1) if last else 1
+                except (ValueError, AttributeError, TypeError):
+                    seq = 1
+                self.wr_number = f"REPACK-{company_id}-{seq:06d}"
+            else:
+                self.wr_number = f"WR-{company_id}-{self.pk:06d}"
             WarehouseReceipt.objects.filter(pk=self.pk).update(wr_number=self.wr_number)
 
     def __str__(self):

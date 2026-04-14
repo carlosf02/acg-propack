@@ -6,6 +6,7 @@ from clients.api import ClientViewSet
 from clients.client_api import ClientPortalSummaryView, ClientPortalPackagesView, ClientSetPasswordView, ClientProfileView, ClientNotificationsView
 from warehouse.api import WarehouseViewSet, StorageLocationViewSet
 from receiving.api import WarehouseReceiptViewSet
+from receiving.repack_api import RepackOperationViewSet
 from shipping.api import ShipmentViewSet
 from company.viewsets import AssociateCompanyViewSet, OfficeViewSet
 from consolidation.api import ConsolidationViewSet
@@ -19,6 +20,7 @@ router.register(r'shipments', ShipmentViewSet, basename='shipment')
 router.register(r'associate-companies', AssociateCompanyViewSet, basename='associate-company')
 router.register(r'offices', OfficeViewSet, basename='office')
 router.register(r'consolidations', ConsolidationViewSet, basename='consolidation')
+router.register(r'repacks', RepackOperationViewSet, basename='repack')
 
 urlpatterns = [
     path('health/', views.health_check, name='health_check'),

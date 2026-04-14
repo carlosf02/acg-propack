@@ -206,7 +206,7 @@ export default function AppLayout() {
                         </nav>
                     ) : (
                         <nav>
-                            <SideNavItem to="/" label="Home" />
+                            <SideNavItem to={homeHref} label="Home" />
                             <SideNavDropdown
                                 label="Warehouses"
                                 basePath="/warehouses"

@@ -315,7 +315,28 @@ export default function CreateWarehousePage() {
                     onRemoveRow={handleRemoveRow}
                 />
 
-                <TotalsSummary packages={packages} />
+                {(() => {
+                    const totals = packages.reduce(
+                        (acc, pkg) => {
+                            const pieces = Math.max(1, Number(pkg.pieces) || 1);
+                            acc.volume += pkg.volume * pieces;
+                            acc.weight += (Number(pkg.weight) || 0) * pieces;
+                            acc.pieces += pieces;
+                            acc.value += (Number(pkg.value) || 0) * pieces;
+                            return acc;
+                        },
+                        { volume: 0, weight: 0, pieces: 0, value: 0 }
+                    );
+                    return (
+                        <TotalsSummary items={[
+                            { label: "Total Packages", value: packages.length },
+                            { label: "Total Volume", value: totals.volume.toFixed(2) },
+                            { label: "Total Weight", value: totals.weight.toFixed(2) },
+                            { label: "Total Pieces", value: totals.pieces },
+                            { label: "Declared Value", value: `$${totals.value.toFixed(2)}` },
+                        ]} />
+                    );
+                })()}
             </div>
         </form>
     );

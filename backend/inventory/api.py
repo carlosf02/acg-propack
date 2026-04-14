@@ -24,7 +24,7 @@ class InvWRMinimalSerializer(serializers.ModelSerializer):
 class InventoryBalanceSerializer(serializers.ModelSerializer):
     client_details = ClientMinimalSerializer(source='client', read_only=True)
     warehouse_details = InvWarehouseMinimalSerializer(source='warehouse', read_only=True)
-    location_details = InvLocationMinimalSerializer(source='location', read_only=True)
+    location_details = InvLocationMinimalSerializer(source='location', read_only=True, allow_null=True)
     wr_details = InvWRMinimalSerializer(source='wr', read_only=True)
 
     class Meta:
