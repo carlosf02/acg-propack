@@ -112,7 +112,7 @@ export default function CheckoutPage() {
 
                         <div style={{ paddingBottom: '1.5rem', borderBottom: '1px solid #f3f4f6', marginBottom: '1.5rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.5rem' }}>
-                                <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 800, color: '#2563eb' }}>{plan.name}</h3>
+                                <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 800, color: '#2679c6' }}>{plan.name}</h3>
                                 <div style={{ fontSize: '1.25rem', fontWeight: 800 }}>${plan.price}<span style={{ fontSize: '0.875rem', color: '#6b7280', fontWeight: 400 }}>/mo</span></div>
                             </div>
                             <p style={{ margin: 0, fontSize: '0.875rem', color: '#6b7280' }}>{plan.description}</p>
@@ -126,7 +126,7 @@ export default function CheckoutPage() {
                             ))}
                         </ul>
 
-                        <Link to="/plans" style={{ display: 'block', textAlign: 'center', fontSize: '0.875rem', color: '#4f46e5', fontWeight: 600, textDecoration: 'none' }}>
+                        <Link to="/plans" style={{ display: 'block', textAlign: 'center', fontSize: '0.875rem', color: '#2679c6', fontWeight: 600, textDecoration: 'none' }}>
                             Change plan
                         </Link>
                     </div>
@@ -266,7 +266,7 @@ export default function CheckoutPage() {
                                         stripe={stripePromise}
                                         options={{
                                             clientSecret,
-                                            appearance: { theme: 'stripe', variables: { colorPrimary: '#2563eb', borderRadius: '12px' } },
+                                            appearance: { theme: 'stripe', variables: { colorPrimary: '#2679c6', borderRadius: '12px' } },
                                             developerTools: { assistant: { enabled: false } }
                                         } as any}
                                     >

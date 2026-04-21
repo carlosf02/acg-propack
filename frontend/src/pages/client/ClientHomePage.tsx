@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../../features/auth/AuthContext";
 import { apiGet } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
+import { formatClientStatus } from "./clientPortalStatus";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -9,8 +10,8 @@ import { endpoints } from "../../api/endpoints";
 
 interface PackageItem {
     id: number;
-    kind: "WR" | "REPACK";
     reference: string;
+    is_repack: boolean;
     status: string;
     date: string | null;
     description: string | null;
@@ -27,7 +28,6 @@ interface LatestProgress {
 
 interface PortalSummary {
     warehouse_receipts: PackageItem[];
-    repacks: PackageItem[];
     latest_progress: LatestProgress | null;
 }
 
@@ -69,6 +69,18 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
 // Progress indicator
 // ---------------------------------------------------------------------------
 
+// NOTE: Stepper thresholds are duplicated from ClientPortalSummaryView (backend).
+// If either side's logic changes (e.g., new status, new stage), update BOTH.
+function computeProgress(pkg: PackageItem): LatestProgress {
+    return {
+        reference: pkg.reference,
+        status: pkg.status,
+        stage_received: true,
+        stage_consolidated: ["INACTIVE", "SHIPPED", "CANCELLED"].includes(pkg.status),
+        stage_arrived: pkg.status === "SHIPPED",
+    };
+}
+
 function PackageProgress({ progress }: { progress: LatestProgress }) {
     const stages = [
         { label: "Received", sublabel: "Warehouse receipt created", done: progress.stage_received },
@@ -79,7 +91,7 @@ function PackageProgress({ progress }: { progress: LatestProgress }) {
     return (
         <div>
             <div style={{ fontSize: "0.8125rem", color: "#6b7280", marginBottom: 16 }}>
-                Latest package: <span style={{ fontWeight: 600, color: "#374151" }}>{progress.reference}</span>
+                Package: <span style={{ fontWeight: 600, color: "#374151" }}>{progress.reference}</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
                 {stages.map((s, i) => (
@@ -148,7 +160,7 @@ function PackageProgress({ progress }: { progress: LatestProgress }) {
                             progress.status === "CANCELLED" ? "#991b1b" : "#374151",
                     }}
                 >
-                    {progress.status}
+                    {formatClientStatus(progress.status)}
                 </span>
             </div>
         </div>
@@ -182,7 +194,7 @@ function StatusBadge({ status }: { status: string }) {
                 whiteSpace: "nowrap",
             }}
         >
-            {status}
+            {formatClientStatus(status)}
         </span>
     );
 }
@@ -198,6 +210,8 @@ export default function ClientHomePage() {
     const [summary, setSummary] = useState<PortalSummary | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [selectedId, setSelectedId] = useState<number | null>(null);
+    const [hoveredId, setHoveredId] = useState<number | null>(null);
 
     useEffect(() => {
         apiGet<PortalSummary>(endpoints.clientPortalSummary())
@@ -206,17 +220,13 @@ export default function ClientHomePage() {
             .finally(() => setLoading(false));
     }, []);
 
-    // Merge and sort WRs + repacks by date descending
-    const allPackages: PackageItem[] = summary
-        ? [
-              ...summary.warehouse_receipts,
-              ...summary.repacks,
-          ].sort((a, b) => {
-              if (!a.date) return 1;
-              if (!b.date) return -1;
-              return new Date(b.date).getTime() - new Date(a.date).getTime();
-          })
-        : [];
+    // Backend returns warehouse_receipts sorted newest-first.
+    const allPackages: PackageItem[] = summary?.warehouse_receipts ?? [];
+
+    const displayedPackage: PackageItem | null =
+        (selectedId != null ? allPackages.find((p) => p.id === selectedId) : null)
+        ?? allPackages[0]
+        ?? null;
 
     const fullName = [client?.name, client?.last_name].filter(Boolean).join(" ") || user?.username || "—";
     const phone = client?.cellphone || client?.phone || client?.home_phone;
@@ -244,12 +254,12 @@ export default function ClientHomePage() {
                     )}
                 </Card>
 
-                {/* Latest package progress */}
-                <Card title="Latest Package Progress">
+                {/* Package progress */}
+                <Card title="Package Progress">
                     {loading ? (
                         <p style={{ color: "#6b7280", fontSize: "0.875rem" }}>Loading…</p>
-                    ) : summary?.latest_progress ? (
-                        <PackageProgress progress={summary.latest_progress} />
+                    ) : displayedPackage ? (
+                        <PackageProgress progress={computeProgress(displayedPackage)} />
                     ) : (
                         <div style={{ color: "#9ca3af", fontSize: "0.875rem", paddingTop: 8 }}>
                             No packages on file yet.
@@ -280,38 +290,53 @@ export default function ClientHomePage() {
                             </tr>
                         </thead>
                         <tbody>
-                            {allPackages.map((pkg) => (
-                                <tr key={`${pkg.kind}-${pkg.id}`} style={{ borderBottom: "1px solid #f3f4f6" }}>
-                                    <td style={{ padding: "8px 10px", fontWeight: 500 }}>{pkg.reference}</td>
-                                    <td style={{ padding: "8px 10px" }}>
-                                        <span
-                                            style={{
-                                                display: "inline-block",
-                                                padding: "2px 8px",
-                                                borderRadius: 10,
-                                                fontSize: "0.7rem",
-                                                fontWeight: 600,
-                                                background: pkg.kind === "WR" ? "#dbeafe" : "#ede9fe",
-                                                color: pkg.kind === "WR" ? "#1e40af" : "#5b21b6",
-                                            }}
-                                        >
-                                            {pkg.kind === "WR" ? "Warehouse Receipt" : "Repack"}
-                                        </span>
-                                    </td>
-                                    <td style={{ padding: "8px 10px" }}>
-                                        <StatusBadge status={pkg.status} />
-                                    </td>
-                                    <td style={{ padding: "8px 10px", color: pkg.description ? "#374151" : "#9ca3af", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                        {pkg.description || "—"}
-                                    </td>
-                                    <td style={{ padding: "8px 10px", whiteSpace: "nowrap" }}>
-                                        {pkg.weight ? `${pkg.weight} lbs` : "—"}
-                                    </td>
-                                    <td style={{ padding: "8px 10px", whiteSpace: "nowrap", color: "#6b7280" }}>
-                                        {pkg.date ? new Date(pkg.date).toLocaleDateString() : "—"}
-                                    </td>
-                                </tr>
-                            ))}
+                            {allPackages.map((pkg) => {
+                                const isSelected = selectedId === pkg.id;
+                                const isHovered = hoveredId === pkg.id && !isSelected;
+                                return (
+                                    <tr
+                                        key={pkg.id}
+                                        onClick={() => setSelectedId(pkg.id)}
+                                        onMouseEnter={() => setHoveredId(pkg.id)}
+                                        onMouseLeave={() => setHoveredId(null)}
+                                        style={{
+                                            borderBottom: "1px solid #f3f4f6",
+                                            cursor: "pointer",
+                                            background: isSelected ? "#eff6ff" : isHovered ? "#f9fafb" : undefined,
+                                            boxShadow: isSelected ? "inset 3px 0 0 #2679c6" : undefined,
+                                        }}
+                                    >
+                                        <td style={{ padding: "8px 10px", fontWeight: 500 }}>{pkg.reference}</td>
+                                        <td style={{ padding: "8px 10px" }}>
+                                            <span
+                                                style={{
+                                                    display: "inline-block",
+                                                    padding: "2px 8px",
+                                                    borderRadius: 10,
+                                                    fontSize: "0.7rem",
+                                                    fontWeight: 600,
+                                                    background: pkg.is_repack ? "#ede9fe" : "#dbeafe",
+                                                    color: pkg.is_repack ? "#5b21b6" : "#1e40af",
+                                                }}
+                                            >
+                                                {pkg.is_repack ? "Repack" : "Warehouse Receipt"}
+                                            </span>
+                                        </td>
+                                        <td style={{ padding: "8px 10px" }}>
+                                            <StatusBadge status={pkg.status} />
+                                        </td>
+                                        <td style={{ padding: "8px 10px", color: pkg.description ? "#374151" : "#9ca3af", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                            {pkg.description || "—"}
+                                        </td>
+                                        <td style={{ padding: "8px 10px", whiteSpace: "nowrap" }}>
+                                            {pkg.weight ? `${pkg.weight} lbs` : "—"}
+                                        </td>
+                                        <td style={{ padding: "8px 10px", whiteSpace: "nowrap", color: "#6b7280" }}>
+                                            {pkg.date ? new Date(pkg.date).toLocaleDateString() : "—"}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 )}

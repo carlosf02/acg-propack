@@ -2,7 +2,6 @@ import { useState, useEffect, ReactNode } from "react";
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import AppLayout from "./layouts/AppLayout";
 import DashboardHome from "./pages/DashboardHome";
-import BackendConnected from "./pages/BackendConnected";
 import CreateLockerPage from "./features/clients/pages/CreateLockerPage";
 import ListLockerPage from "./features/clients/pages/ListLockerPage";
 import ListWarehousePage from "./features/warehouse/pages/ListWarehousePage";
@@ -28,7 +27,6 @@ import ClientSettingsPage from "./pages/client/ClientSettingsPage";
 // Global Nav Routes
 import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
-import AdminPage from "./pages/AdminPage";
 import HelpPage from "./pages/HelpPage";
 import BillingPage from "./pages/BillingPage";
 import PaymentMethodsPage from "./pages/PaymentMethodsPage";
@@ -47,7 +45,7 @@ import SupportPage from "./pages/SupportPage";
 
 type AuthState = "loading" | "authed" | "unauthed";
 
-const ADMIN_ONLY_PATHS = ["/dashboard", "/warehouses", "/repacking", "/consolidated", "/clients", "/finance", "/backend-connected", "/receiving", "/inventory", "/shipping", "/search", "/admin"];
+const ADMIN_ONLY_PATHS = ["/dashboard", "/warehouses", "/repacking", "/consolidated", "/clients", "/finance", "/receiving", "/inventory", "/shipping"];
 
 function AuthGate({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>("loading");
@@ -72,13 +70,13 @@ function AuthGate({ children }: { children: ReactNode }) {
       .catch((err) => {
         if (err instanceof ApiError && err.status === 401) {
           setState("unauthed");
-          const protectedPaths = ["/dashboard", "/client", "/finance", "/clients", "/warehouses", "/repacking", "/consolidated", "/profile", "/settings", "/admin"];
+          const protectedPaths = ["/dashboard", "/client", "/finance", "/clients", "/warehouses", "/repacking", "/consolidated", "/profile", "/settings"];
           if (protectedPaths.some(p => window.location.pathname.startsWith(p))) {
             navigate("/login", { replace: true });
           }
         } else {
           setState("unauthed");
-          const protectedPaths = ["/dashboard", "/client", "/finance", "/clients", "/warehouses", "/repacking", "/consolidated", "/profile", "/settings", "/admin"];
+          const protectedPaths = ["/dashboard", "/client", "/finance", "/clients", "/warehouses", "/repacking", "/consolidated", "/profile", "/settings"];
           if (protectedPaths.some(p => window.location.pathname.startsWith(p))) {
             navigate("/login", { replace: true });
           }
@@ -112,14 +110,6 @@ function AuthGate({ children }: { children: ReactNode }) {
 function DefaultRedirect() {
   const { user } = useAuth();
   return <Navigate to={user ? getPostLoginDestination(user) : "/dashboard"} replace />;
-}
-
-// ---------------------------------------------------------------------------
-// Placeholder
-// ---------------------------------------------------------------------------
-
-function PlaceholderPage(props: { title: string }) {
-  return <h1 style={{ marginTop: 0 }}>{props.title}</h1>;
 }
 
 // ---------------------------------------------------------------------------
@@ -158,7 +148,6 @@ export default function App() {
         <Route path="/client/onboarding" element={<ClientOnboardingPage />} />
         <Route path="/client" element={<ClientHomePage />} />
         <Route path="/client/packages" element={<ClientPackagesPage />} />
-        <Route path="/client/payments" element={<PlaceholderPage title="My Payments" />} />
         <Route path="/client/settings" element={<ClientSettingsPage />} />
 
         {/* Clients / Lockers */}
@@ -169,13 +158,6 @@ export default function App() {
         <Route path="/warehouses" element={<ListWarehousePage />} />
         <Route path="/warehouses/new" element={<CreateWarehousePage />} />
 
-        {/* Development */}
-        <Route path="/backend-connected" element={<BackendConnected />} />
-
-        {/* Placeholders so sidebar links have somewhere to go */}
-        <Route path="/receiving" element={<PlaceholderPage title="Receiving" />} />
-        <Route path="/inventory" element={<PlaceholderPage title="Inventory" />} />
-        <Route path="/shipping" element={<PlaceholderPage title="Shipping" />} />
         <Route path="/repacking" element={<ListRepackingPage />} />
         <Route path="/repacking/new" element={<CreateRepackingPage />} />
 
@@ -192,12 +174,10 @@ export default function App() {
         {/* Legacy redirects */}
         <Route path="/payments" element={<Navigate to="/finance/payments" replace />} />
         <Route path="/billing" element={<Navigate to="/finance/billing" replace />} />
-        <Route path="/search" element={<PlaceholderPage title="Search" />} />
 
         {/* Global Nav Routes */}
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/admin" element={<AdminPage />} />
         <Route path="/help" element={<HelpPage />} />
 
         {/* Catch-all within authenticated zone */}

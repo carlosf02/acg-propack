@@ -80,7 +80,7 @@ export default function LoginPage() {
                             <label className="auth-label" htmlFor="login-password" style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#374151' }}>
                                 Password
                             </label>
-                            <Link className="auth-link" to="/forgot-password" style={{ fontSize: '0.8125rem', color: '#4f46e5', textDecoration: 'none' }}>
+                            <Link className="auth-link" to="/forgot-password" style={{ fontSize: '0.8125rem', color: '#2679c6', textDecoration: 'none' }}>
                                 Forgot?
                             </Link>
                         </div>

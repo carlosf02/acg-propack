@@ -89,8 +89,8 @@ export default function SignupPage() {
 
                 {step === "choice" && (
                     <>
-                        <div style={{ background: '#e0e7ff', padding: '1rem', borderRadius: '8px', marginBottom: '2rem', color: '#3730a3', fontSize: '0.875rem', textAlign: 'center' }}>
-                            Looking to start a new company? <Link to="/plans" style={{ fontWeight: 700, color: '#4338ca' }}>View plans and get started here.</Link>
+                        <div style={{ background: '#dbeafe', padding: '1rem', borderRadius: '8px', marginBottom: '2rem', color: '#1e3a8a', fontSize: '0.875rem', textAlign: 'center' }}>
+                            Looking to start a new company? <Link to="/plans" style={{ fontWeight: 700, color: '#1e3a8a' }}>View plans and get started here.</Link>
                         </div>
 
                         <h1 className="auth-title" style={{ fontSize: '1.5rem', fontWeight: 700, textAlign: 'center', marginBottom: '0.5rem', color: '#111827' }}>
@@ -269,7 +269,7 @@ export default function SignupPage() {
 
                 <div style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid #f3f4f6', textAlign: 'center' }}>
                     <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                        Already have an account? <Link className="auth-link" to="/login" style={{ color: '#4f46e5', fontWeight: 600, textDecoration: 'none' }}>Sign in</Link>
+                        Already have an account? <Link className="auth-link" to="/login" style={{ color: '#2679c6', fontWeight: 600, textDecoration: 'none' }}>Sign in</Link>
                     </p>
                 </div>
             </div>

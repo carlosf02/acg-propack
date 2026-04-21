@@ -74,13 +74,15 @@ class ClientPortalPackagesView(APIView):
     """
     GET /api/v1/client/packages/
 
-    Returns the combined package list (WRs + repacks) for the logged-in client.
-    Supports query params: search, from_date, until_date, kind (WR|REPACK)
+    Returns the warehouse receipts (including repack outputs) for the logged-in
+    client. Each row carries an ``is_repack`` flag so the UI can label the row
+    type. Query params: search, from_date, until_date, kind (WR|REPACK).
+    kind=WR filters to regular receipts; kind=REPACK filters to repack outputs.
     """
     permission_classes = [IsAuthenticated, IsClientUser]
 
     def get(self, request):
-        from receiving.models import WarehouseReceipt, RepackOperation
+        from receiving.models import WarehouseReceipt
 
         client = get_client_from_request(request)
         search = (request.query_params.get('search') or '').strip().lower()
@@ -88,86 +90,44 @@ class ClientPortalPackagesView(APIView):
         until_date = request.query_params.get('until_date') or ''
         kind_filter = (request.query_params.get('kind') or '').upper()
 
+        wr_qs = (
+            WarehouseReceipt.objects
+            .filter(client=client)
+            .order_by('-received_at')
+            .prefetch_related('lines', 'lines__tracking_numbers')
+        )
+        if kind_filter == 'WR':
+            wr_qs = wr_qs.filter(is_repack=False)
+        elif kind_filter == 'REPACK':
+            wr_qs = wr_qs.filter(is_repack=True)
+        if from_date:
+            wr_qs = wr_qs.filter(received_at__date__gte=from_date)
+        if until_date:
+            wr_qs = wr_qs.filter(received_at__date__lte=until_date)
+
         items = []
-
-        # ── Warehouse Receipts ──────────────────────────────────────────────
-        if kind_filter in ('', 'WR'):
-            wr_qs = (
-                WarehouseReceipt.objects
-                .filter(client=client)
-                .order_by('-received_at')
-                .prefetch_related('lines', 'lines__tracking_numbers')
-            )
-            if from_date:
-                wr_qs = wr_qs.filter(received_at__date__gte=from_date)
-            if until_date:
-                wr_qs = wr_qs.filter(received_at__date__lte=until_date)
-
-            for wr in wr_qs:
-                rolled = _aggregate_wr_lines(wr)
-                date_str = wr.received_at.isoformat() if wr.received_at else None
-                item = {
-                    "id": wr.id,
-                    "kind": "WR",
-                    "reference": wr.wr_number,
-                    "tracking_number": rolled["tracking_number"],
-                    "carrier": rolled["carrier"],
-                    "status": wr.status,
-                    "date": date_str,
-                    "date_sort": wr.received_at,
-                    "description": rolled["description"],
-                    "weight": rolled["weight"],
-                    "weight_unit": "LB",
-                    "shipping_method": wr.shipping_method,
-                }
-                if search:
-                    haystack = ' '.join(filter(None, [
-                        wr.wr_number, rolled["tracking_number"], rolled["description"],
-                    ])).lower()
-                    if search not in haystack:
-                        continue
-                items.append(item)
-
-        # ── Repack Operations ───────────────────────────────────────────────
-        if kind_filter in ('', 'REPACK'):
-            rp_qs = (
-                RepackOperation.objects
-                .filter(client=client)
-                .order_by('-performed_at')
-                .values('id', 'operation_type', 'notes', 'performed_at')
-            )
-            if from_date:
-                rp_qs = rp_qs.filter(performed_at__date__gte=from_date)
-            if until_date:
-                rp_qs = rp_qs.filter(performed_at__date__lte=until_date)
-
-            for r in rp_qs:
-                ref = f"RK-{r['id']:05d}"
-                date_str = r['performed_at'].isoformat() if r['performed_at'] else None
-                item = {
-                    "id": r['id'],
-                    "kind": "REPACK",
-                    "reference": ref,
-                    "tracking_number": None,
-                    "carrier": None,
-                    "status": r['operation_type'],
-                    "date": date_str,
-                    "date_sort": r['performed_at'],
-                    "description": r['notes'] or None,
-                    "weight": None,
-                    "weight_unit": None,
-                    "shipping_method": None,
-                }
-                if search:
-                    haystack = ' '.join(filter(None, [ref, r['notes']])).lower()
-                    if search not in haystack:
-                        continue
-                items.append(item)
-
-        # Sort combined list newest-first
-        items.sort(key=lambda x: x['date_sort'] or '', reverse=True)
-        for item in items:
-            del item['date_sort']
+        for wr in wr_qs:
+            rolled = _aggregate_wr_lines(wr)
+            item = {
+                "id": wr.id,
+                "reference": wr.wr_number,
+                "is_repack": wr.is_repack,
+                "tracking_number": rolled["tracking_number"],
+                "carrier": rolled["carrier"],
+                "status": wr.status,
+                "date": wr.received_at.isoformat() if wr.received_at else None,
+                "description": rolled["description"],
+                "weight": rolled["weight"],
+                "weight_unit": "LB",
+                "shipping_method": wr.shipping_method,
+            }
+            if search:
+                haystack = ' '.join(filter(None, [
+                    wr.wr_number, rolled["tracking_number"], rolled["description"],
+                ])).lower()
+                if search not in haystack:
+                    continue
+            items.append(item)
 
         return Response({"results": items, "count": len(items)})
 
@@ -176,13 +136,15 @@ class ClientPortalSummaryView(APIView):
     """
     GET /api/v1/client/summary/
 
-    Returns the warehouse receipts and repack operations belonging to the
-    logged-in client user.
+    Returns the warehouse receipts (including repack outputs) for the logged-in
+    client user. Each row carries an ``is_repack`` flag so the UI can label the
+    row type; repack operations are not returned as separate rows to avoid
+    duplicating the output WR.
     """
     permission_classes = [IsAuthenticated, IsClientUser]
 
     def get(self, request):
-        from receiving.models import WarehouseReceipt, RepackOperation
+        from receiving.models import WarehouseReceipt
 
         client = get_client_from_request(request)
 
@@ -193,38 +155,18 @@ class ClientPortalSummaryView(APIView):
             .prefetch_related('lines', 'lines__tracking_numbers')
         )
 
-        repacks = (
-            RepackOperation.objects
-            .filter(client=client)
-            .order_by('-performed_at')
-            .values('id', 'operation_type', 'notes', 'performed_at')
-        )
-
         wr_list = []
         for wr in wrs:
             rolled = _aggregate_wr_lines(wr)
             wr_list.append({
                 "id": wr.id,
-                "kind": "WR",
                 "reference": wr.wr_number,
+                "is_repack": wr.is_repack,
                 "status": wr.status,
                 "date": wr.received_at.isoformat() if wr.received_at else None,
                 "description": rolled["description"],
                 "weight": rolled["weight"],
             })
-
-        repack_list = [
-            {
-                "id": r['id'],
-                "kind": "REPACK",
-                "reference": f"RK-{r['id']:05d}",
-                "status": r['operation_type'],
-                "date": r['performed_at'].isoformat() if r['performed_at'] else None,
-                "description": r['notes'] or None,
-                "weight": None,
-            }
-            for r in repacks
-        ]
 
         # Latest WR progress (most recent by received_at)
         latest_wr = wrs[0] if wrs else None
@@ -241,7 +183,6 @@ class ClientPortalSummaryView(APIView):
 
         return Response({
             "warehouse_receipts": wr_list,
-            "repacks": repack_list,
             "latest_progress": latest_progress,
         })
 

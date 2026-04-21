@@ -113,7 +113,6 @@ function SideNavDropdown(props: {
 export default function AppLayout() {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const isAdmin = user?.role === "admin";
     const isClient = user?.auth_role === "CLIENT";
     const homeHref = user ? getPostLoginDestination(user) : "/dashboard";
 
@@ -149,7 +148,6 @@ export default function AppLayout() {
                     </Link>
 
                     <div style={{ display: "flex", gap: 8 }}>
-                        {isAdmin && <TopMenuButton label="Administration" to="/admin" />}
                         <TopMenuButton label="Settings" to={isClient ? "/client/settings" : "/settings"} />
                         <TopMenuButton label="Help" to="/help" />
                     </div>
@@ -182,9 +180,6 @@ export default function AppLayout() {
                             🚪
                         </button>
                     </div>
-                    <div style={{ marginLeft: 16 }}>
-                        <TopMenuButton label="Backend Connected" to="/backend-connected" />
-                    </div>
                 </div>
             </header>
 
@@ -202,7 +197,6 @@ export default function AppLayout() {
                         <nav>
                             <SideNavItem to="/client" label="Home" />
                             <SideNavItem to="/client/packages" label="Packages" />
-                            <SideNavItem to="/client/payments" label="Payments" />
                         </nav>
                     ) : (
                         <nav>
@@ -248,7 +242,6 @@ export default function AppLayout() {
                                     { to: "/finance/payments", label: "Payment History" },
                                 ]}
                             />
-                            <SideNavItem to="/search" label="Search" />
                         </nav>
                     )}
                 </aside>

@@ -2,15 +2,12 @@
    Company Main Page — Professional B2B Software Landing
    ========================================================= */
 
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
-
 /* ===== ROOT STYLES ===== */
 
 .company-main-page {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  font-family: "Inter", system-ui, -apple-system, sans-serif;
   background-color: #fafafa;
   color: #111827;
 }
@@ -53,7 +50,7 @@
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  background: linear-gradient(135deg, #2b3a55 0%, #2679c6 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -126,7 +123,7 @@
 }
 
 .company-btn-primary {
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  background: linear-gradient(135deg, #2b3a55 0%, #2679c6 100%);
   color: #fff;
   box-shadow: 0 1px 3px rgba(79, 70, 229, 0.35);
 }
@@ -459,7 +456,7 @@ section:first-of-type {
   position: absolute;
   top: 1rem;
   right: 1rem;
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  background: linear-gradient(135deg, #2b3a55 0%, #2679c6 100%);
   color: #fff;
   font-size: 0.65rem;
   font-weight: 700;

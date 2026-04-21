@@ -2,17 +2,13 @@
    Auth pages — shared layout & component styles
    ========================================================= */
 
-/* Google Font loaded via @import so no new deps are needed */
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
-
 /* ----------- Full-page shell ----------- */
 .auth-page {
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #f0f4ff 0%, #faf9ff 50%, #f0f7f4 100%);
-    font-family: "Inter", system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 50%, #eef4fb 100%);
     padding: 1.5rem;
 }
 
@@ -41,7 +37,7 @@
     width: 36px;
     height: 36px;
     border-radius: 9px;
-    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    background: linear-gradient(135deg, #2b3a55 0%, #2679c6 100%);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -110,9 +106,9 @@
 }
 
 .auth-input:focus {
-    border-color: #6366f1;
+    border-color: #2679c6;
     background: #fff;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+    box-shadow: 0 0 0 3px rgba(38, 121, 198, 0.15);
 }
 
 /* ----------- Password Toggle ----------- */
@@ -147,7 +143,7 @@
 }
 
 .auth-password-toggle:focus-visible {
-    outline: 2px solid #6366f1;
+    outline: 2px solid #2679c6;
     outline-offset: 1px;
 }
 
@@ -169,16 +165,16 @@
     font-size: 0.9375rem;
     font-weight: 600;
     font-family: inherit;
-    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    background: linear-gradient(135deg, #2b3a55 0%, #2679c6 100%);
     color: #fff;
     cursor: pointer;
     transition: opacity 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
-    box-shadow: 0 1px 3px rgba(79, 70, 229, 0.35);
+    box-shadow: 0 1px 3px rgba(38, 121, 198, 0.35);
 }
 
 .auth-btn:hover:not(:disabled) {
     opacity: 0.92;
-    box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
+    box-shadow: 0 4px 14px rgba(38, 121, 198, 0.4);
     transform: translateY(-1px);
 }
 
@@ -248,14 +244,14 @@
 }
 
 .auth-link {
-    color: #4f46e5;
+    color: #2679c6;
     text-decoration: none;
     font-weight: 500;
     transition: color 0.12s ease;
 }
 
 .auth-link:hover {
-    color: #7c3aed;
+    color: #1f5a99;
     text-decoration: underline;
 }
 

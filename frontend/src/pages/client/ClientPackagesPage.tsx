@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { apiGet } from '../../api/client';
 import { endpoints } from '../../api/endpoints';
+import { formatClientStatus } from './clientPortalStatus';
 import './ClientPackagesPage.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -10,8 +11,8 @@ type SearchField = 'all' | 'reference' | 'tracking_number' | 'description';
 
 interface PackageItem {
     id: number;
-    kind: 'WR' | 'REPACK';
     reference: string;
+    is_repack: boolean;
     tracking_number: string | null;
     carrier: string | null;
     status: string;
@@ -42,8 +43,6 @@ function statusClass(status: string): string {
         case 'SHIPPED':     return 'cpp-status-shipped';
         case 'INACTIVE':    return 'cpp-status-inactive';
         case 'CANCELLED':   return 'cpp-status-cancelled';
-        case 'CONSOLIDATE': return 'cpp-status-consolidate';
-        case 'REPACK':      return 'cpp-status-repack';
         default:            return 'cpp-status-default';
     }
 }
@@ -275,7 +274,7 @@ export default function ClientPackagesPage() {
                             ) : paginated.length > 0 ? (
                                 paginated.map((pkg, index) => (
                                     <tr
-                                        key={`${pkg.kind}-${pkg.id}`}
+                                        key={pkg.id}
                                         className={index % 2 === 0 ? 'cpp-row-even' : 'cpp-row-odd'}
                                     >
                                         <td>
@@ -288,13 +287,13 @@ export default function ClientPackagesPage() {
                                             }
                                         </td>
                                         <td>
-                                            <span className={`cpp-badge ${pkg.kind === 'WR' ? 'cpp-badge-wr' : 'cpp-badge-repack'}`}>
-                                                {pkg.kind === 'WR' ? 'Warehouse Receipt' : 'Repack'}
+                                            <span className={`cpp-badge ${pkg.is_repack ? 'cpp-badge-repack' : 'cpp-badge-wr'}`}>
+                                                {pkg.is_repack ? 'Repack' : 'Warehouse Receipt'}
                                             </span>
                                         </td>
                                         <td>
                                             <span className={`cpp-status ${statusClass(pkg.status)}`}>
-                                                {pkg.status}
+                                                {formatClientStatus(pkg.status)}
                                             </span>
                                         </td>
                                         <td>{formatDate(pkg.date)}</td>

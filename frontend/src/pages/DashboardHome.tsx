@@ -1,7 +1,4 @@
-// TODO(dashboard-v2): two real charts (WRs/day, ship-type donut) are wired up.
-// SHOW_CHARTS still gates the legacy "Invoices" and "Type of Load" placeholder
-// blocks — leave hidden until invoice/freight % data is ready. Future work:
-// financial summary using the new pricing-v2 math.
+// TODO(dashboard-v2): financial summary using the new pricing-v2 math.
 import { useEffect, useMemo, useState } from "react";
 import {
     CartesianGrid,
@@ -19,8 +16,6 @@ import { apiGet, ApiError } from "../api/client";
 import { endpoints } from "../api/endpoints";
 import { useAuth } from "../features/auth/AuthContext";
 import "./DashboardHome.css";
-
-const SHOW_CHARTS = false;
 
 type RecentWR = {
     wr_number: string;
@@ -101,19 +96,6 @@ export default function DashboardHome() {
             <h1 className="dh-title">{title}</h1>
 
             <div className="dh-stack">
-                {SHOW_CHARTS && (
-                    <>
-                        <section className="dh-card">
-                            <h2 className="dh-card-title">Invoices for the last 30 days</h2>
-                            <p className="dh-state">This will render when invoice data exists.</p>
-                        </section>
-                        <section className="dh-card">
-                            <h2 className="dh-card-title">Type of Load</h2>
-                            <p className="dh-state">Percentages will update when shipments exist.</p>
-                        </section>
-                    </>
-                )}
-
                 <section className="dh-card">
                     <h2 className="dh-card-title">Overview</h2>
                     {loading ? (

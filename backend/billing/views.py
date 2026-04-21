@@ -169,7 +169,7 @@ class CreatePortalSessionView(APIView):
 
     def post(self, request):
         company = get_active_company(request.user)
-        return_url = request.data.get("return_url", "http://localhost:5173/billing")
+        return_url = request.data.get("return_url", f"{settings.FRONTEND_URL}/billing")
 
         try:
             session = create_portal_session(company, return_url)
